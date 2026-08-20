@@ -411,7 +411,7 @@ def action_plan(df: pd.DataFrame) -> str:
             "对高粘性临期客户，以实际使用成果复盘推进早鸟续费和组合增购。")
 
 
-def weekly_report_html(df: pd.DataFrame, title: str, week_label: str, focus_dimensions: list[str] | None = None, analysis_plan: dict[str, Any] | None = None) -> str:
+def weekly_report_html(df: pd.DataFrame, title: str, week_label: str, focus_dimensions: list[str] | None = None, analysis_plan: dict[str, Any] | None = None, comparison: dict[str, Any] | None = None) -> str:
     product_rows = []
     for _, row in df.iterrows():
         for product in row.used_products:
