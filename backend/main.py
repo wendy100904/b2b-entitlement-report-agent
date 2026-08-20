@@ -541,7 +541,9 @@ def analyze(request: AnalyzeRequest):
     industry = df.groupby("industry", as_index=False).agg(customers=("customer_id", "count"), avg_coverage=("coverage", "mean"), avg_idle=("idle_high_value", "mean"), high_risk=("risk_level", lambda x: int(x.isin(["高危流失", "中危预警"]).sum()))).round(3)
     export = df.sort_values(["risk_score", "annual_value"], ascending=False).head(200)
     focus_dimensions = [field for field in request.focus_dimensions if field in SEGMENT_FIELDS] or ["industry"]
-    return {"snapshot_date": selected_date, "available_snapshots": snapshot_dates(history), "summary": {"customers": len(df), "high_risk": int(risk["高危流失"] + risk["中危预警"]), "upsell": int(risk["续费/增购"]), "avg_coverage": round(float(df.coverage.mean()), 3) if len(df) else 0}, "risk": risk, "industry": industry.to_dict(orient="records"), "breakdowns": segment_breakdowns(df, focus_dimensions), "focus_dimensions": focus_dimensions, "report": action_plan(df), "download_rows": export.to_dict(orient="records")}
+    summary = pool_summary(df)
+    comparison = build_comparison(history, selected_date, summary, request)
+    return {"snapshot_date": selected_date, "available_snapshots": snapshot_dates(history), "summary": summary, "comparison": comparison, "risk": risk, "industry": industry.to_dict(orient="records"), "breakdowns": segment_breakdowns(df, focus_dimensions), "focus_dimensions": focus_dimensions, "report": action_plan(df), "download_rows": export.to_dict(orient="records")}
 
 
 @app.post("/api/query", tags=["legacy"])
