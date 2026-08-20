@@ -426,7 +426,7 @@ def weekly_report_html(df: pd.DataFrame, title: str, week_label: str, focus_dime
         "客户池规模": len(df), "活跃客户数": int((df.use_times > 0).sum()), "总使用次数": int(df.use_times.sum()),
         "平均权益覆盖率": f"{df.coverage.mean():.1%}" if len(df) else "0%", "高/中危客户": int(df.risk_level.isin(["高危流失", "中危预警"]).sum()),
     }
-    product_fig = px.bar(product_summary.sort_values("use_times"), x="use_times", y="product", orientation="h", title="五类产品使用情况")
+    product_fig = px.bar(product_summary.sort_values("use_times"), x="use_times", y="product", orientation="h", title=f"产品使用情况（共 {len(product_summary)} 种）")
     risk_fig = px.bar(risk, x="risk_level", y="customers", color="risk_level", title="客户风险分布")
     segment_figs = []
     for breakdown in breakdowns:
