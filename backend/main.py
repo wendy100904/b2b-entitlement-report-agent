@@ -591,7 +591,8 @@ def weekly_report(request: WeeklyReportRequest):
     df, selected_date = select_snapshot(history, request.snapshot_date)
     df = apply_filters(df, request.industry, request.renewal_max, request.value_tier, request.filters)
     focus_dimensions = [field for field in request.focus_dimensions if field in SEGMENT_FIELDS] or ["industry"]
-    html = weekly_report_html(df, request.report_title, request.week_label, focus_dimensions, request.analysis_plan)
+    comparison = build_comparison(history, selected_date, pool_summary(df), request)
+    html = weekly_report_html(df, request.report_title, request.week_label, focus_dimensions, request.analysis_plan, comparison)
     return {"title": request.report_title, "week_label": request.week_label, "html": html, "rows": len(df), "snapshot_date": selected_date}
 
 
