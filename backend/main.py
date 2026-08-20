@@ -517,6 +517,15 @@ def health():
     return {"status": "ok", "service": "b2b-entitlement-agent", "time": datetime.now(timezone.utc).isoformat(), "storage": "ephemeral-memory"}
 
 
+@app.get("/api/v1/sample-data", tags=["platform"])
+def sample_data():
+    path = ROOT / "sample_data_multiweek.csv"
+    if not path.exists():
+        raise HTTPException(404, "样例数据文件不存在")
+    content = "\ufeff" + path.read_text(encoding="utf-8")
+    return Response(content=content, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=sample_data_multiweek.csv"})
+
+
 @app.post("/api/upload", tags=["legacy"])
 @app.post("/api/v1/uploads", tags=["uploads"])
 async def upload(file: UploadFile = File(...)):
