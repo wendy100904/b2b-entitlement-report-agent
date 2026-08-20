@@ -340,6 +340,35 @@ def apply_filters(df: pd.DataFrame, industry: str, renewal_max: int, value_tier:
     return result
 
 
+def pool_summary(df: pd.DataFrame) -> dict[str, Any]:
+    risk = df.risk_level.value_counts().reindex(["高危流失", "中危预警", "体验引导", "续费/增购", "健康"], fill_value=0).to_dict()
+    return {
+        "customers": int(len(df)),
+        "high_risk": int(risk["高危流失"] + risk["中危预警"]),
+        "upsell": int(risk["续费/增购"]),
+        "avg_coverage": round(float(df.coverage.mean()), 3) if len(df) else 0,
+    }
+
+
+def previous_snapshot_date(history: pd.DataFrame, selected_date: str) -> str | None:
+    dates = snapshot_dates(history)
+    if selected_date not in dates:
+        return None
+    index = dates.index(selected_date)
+    return dates[index + 1] if index + 1 < len(dates) else None
+
+
+def build_comparison(history: pd.DataFrame, selected_date: str, current: dict[str, Any], request: "AnalyzeRequest") -> dict[str, Any] | None:
+    prev_date = previous_snapshot_date(history, selected_date)
+    if not prev_date:
+        return None
+    prev_df, _ = select_snapshot(history, prev_date)
+    prev_df = apply_filters(prev_df, request.industry, request.renewal_max, request.value_tier, request.filters)
+    prev = pool_summary(prev_df)
+    deltas = {key: round(current[key] - prev[key], 3) for key in ["customers", "high_risk", "upsell", "avg_coverage"]}
+    return {"previous_date": prev_date, "previous": prev, "deltas": deltas}
+
+
 def segment_breakdowns(df: pd.DataFrame, focus_dimensions: list[str]) -> list[dict[str, Any]]:
     breakdowns = []
     for field in focus_dimensions:
