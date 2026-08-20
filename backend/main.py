@@ -448,7 +448,26 @@ def weekly_report_html(df: pd.DataFrame, title: str, week_label: str, focus_dime
     mode = str(analysis_plan.get("mode") or "综合客户池诊断")
     primary = DIMENSION_LABELS.get(str(analysis_plan.get("primary_dimension") or ""), "行业")
     ranking_rule = str(analysis_plan.get("ranking_rule") or "高/中危客户数降序")
-    return f"""<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><title>{title}</title><style>body{{font:14px Arial,'Microsoft YaHei',sans-serif;color:#18313f;max-width:1100px;margin:32px auto;padding:0 24px}}h1{{font-size:28px;margin-bottom:4px}}h2{{margin-top:30px;border-bottom:1px solid #d9e3e6;padding-bottom:8px}}h3{{margin:22px 0 8px;color:#315363}}.muted{{color:#6b7c86}}.plan{{background:#f2faf8;border-left:4px solid #087e72;padding:12px 14px;margin:16px 0}}.kpis{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:24px 0}}.kpi{{border:1px solid #d9e3e6;padding:15px;background:#f7fbfa}}.kpi small{{display:block;color:#6b7c86}}.kpi strong{{font-size:24px;display:block;margin-top:7px}}.chart{{margin:14px 0}}table{{width:100%;border-collapse:collapse}}td,th{{border-bottom:1px solid #d9e3e6;text-align:left;padding:8px}}th{{color:#6b7c86}}.callout{{background:#edf8f5;padding:16px;line-height:1.8}}@media(max-width:700px){{.kpis{{grid-template-columns:1fr 1fr}}}}</style></head><body><h1>{title}</h1><p class='muted'>{week_label} · 自动生成 · 数据范围：当前上传客户池</p><div class='plan'><b>Agent 分析方案：{mode}</b><br>主分群：{primary} · 排序口径：{ranking_rule}</div><div class='kpis'>{cards}</div><h2>本周结论</h2><div class='callout'>{narrative}</div><h2>产品使用与风险分布</h2><div class='chart'>{charts}</div><h2>多维客户分群明细</h2>{detail_tables}<p class='muted'>注：本报告由上传的整理结果生成，指标口径和字段映射应在每周上传时复核。</p></body></html>"""
+    comparison_html = ""
+    if comparison and comparison.get("deltas"):
+        deltas = comparison["deltas"]
+        def _seg(label: str, value: float, higher_worse: bool = False, pct: bool = False) -> str:
+            if value == 0:
+                return f"{label}持平"
+            up = value > 0
+            good = (not up) if higher_worse else up
+            arrow = "▲" if up else "▼"
+            color = "#0b8f6a" if good else "#c94b55"
+            shown = f"{'+' if up else ''}{value * 100:.1f}pt" if pct else f"{'+' if up else ''}{int(value)}"
+            return f"<span style='color:{color};font-weight:700'>{label} {arrow} {shown}</span>"
+        segs = [
+            _seg("客户池规模", deltas.get("customers", 0)),
+            _seg("高/中危客户", deltas.get("high_risk", 0), higher_worse=True),
+            _seg("续费/增购机会", deltas.get("upsell", 0)),
+            _seg("平均权益覆盖率", deltas.get("avg_coverage", 0), pct=True),
+        ]
+        comparison_html = f"<div class='plan' style='background:#f6f8fa;border-left-color:#315363'><b>较上周（{comparison.get('previous_date', '')}）环比</b><br>" + " ｜ ".join(segs) + "</div>"
+    return f"""<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><title>{title}</title><style>body{{font:14px Arial,'Microsoft YaHei',sans-serif;color:#18313f;max-width:1100px;margin:32px auto;padding:0 24px}}h1{{font-size:28px;margin-bottom:4px}}h2{{margin-top:30px;border-bottom:1px solid #d9e3e6;padding-bottom:8px}}h3{{margin:22px 0 8px;color:#315363}}.muted{{color:#6b7c86}}.plan{{background:#f2faf8;border-left:4px solid #087e72;padding:12px 14px;margin:16px 0}}.kpis{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:24px 0}}.kpi{{border:1px solid #d9e3e6;padding:15px;background:#f7fbfa}}.kpi small{{display:block;color:#6b7c86}}.kpi strong{{font-size:24px;display:block;margin-top:7px}}.chart{{margin:14px 0}}table{{width:100%;border-collapse:collapse}}td,th{{border-bottom:1px solid #d9e3e6;text-align:left;padding:8px}}th{{color:#6b7c86}}.callout{{background:#edf8f5;padding:16px;line-height:1.8}}@media(max-width:700px){{.kpis{{grid-template-columns:1fr 1fr}}}}</style></head><body><h1>{title}</h1><p class='muted'>{week_label} · 自动生成 · 数据范围：当前上传客户池</p><div class='plan'><b>Agent 分析方案：{mode}</b><br>主分群：{primary} · 排序口径：{ranking_rule}</div><div class='kpis'>{cards}</div>{comparison_html}<h2>本周结论</h2><div class='callout'>{narrative}</div><h2>产品使用与风险分布</h2><div class='chart'>{charts}</div><h2>多维客户分群明细</h2>{detail_tables}<p class='muted'>注：本报告由上传的整理结果生成，指标口径和字段映射应在每周上传时复核。</p></body></html>"""
 
 
 def clean_sql(text: str) -> str:
