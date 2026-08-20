@@ -7,6 +7,21 @@ This is the deployable full-stack version of the project:
 3. The backend calculates batch-level entitlement health, renewal risk, and SOP output.
 4. The SQL Agent uses the uploaded, normalized table as its actual data source. With `OPENAI_API_KEY` configured, it generates read-only DuckDB SQL from natural-language questions; without a key it only exposes limited demo fallback queries.
 
+## 快速开始（跨平台，推荐）
+
+```bash
+# 1. 安装依赖（建议先建虚拟环境）
+pip install -r requirements.txt
+
+# 2. （可选）配置 OpenAI 密钥以启用自然语言查询；不配也能用规则降级
+export OPENAI_API_KEY="你的密钥"      # Windows PowerShell: $env:OPENAI_API_KEY="你的密钥"
+
+# 3. 启动服务
+python -m uvicorn backend.main:app --reload --port 8000
+```
+
+打开 `http://127.0.0.1:8000`，用仓库自带的 `sample_data.csv` 上传即可体验完整流程（字段自动识别 → 风险诊断 → 图表周报 → SQL 问答）。API 文档见 `http://127.0.0.1:8000/docs`。
+
 ## Run
 
 ```powershell
