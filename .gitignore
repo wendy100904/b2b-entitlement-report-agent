@@ -1,0 +1,27 @@
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# User uploads, local reports, and tunnel tooling
+uploads/
+reports/
+.tools/
+*.log
+
+# Local SQLite database
+entitlement.db
+entitlement.db-wal
+entitlement.db-shm
+data/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: entitlement-report-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: MAX_UPLOAD_MB
+        value: "30"
+      - key: OPENAI_MODEL
+        value: gpt-5
+      - key: OPENAI_API_KEY
+        sync: false
