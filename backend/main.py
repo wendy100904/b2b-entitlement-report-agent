@@ -543,11 +543,12 @@ def suggest_analysis_plan(df: pd.DataFrame, mapping: dict[str, str | None], goal
         "instruction": "你是 B2B 商业化数据负责人。只返回 JSON，不要解释。基于经营问题和数据画像，规划一个可执行的批量分析方案。必须输出 mode、primary_dimension、focus_dimensions(最多3个)、renewal_max(30/60/90/180)、filters、metrics、ranking_rule、report_sections、actions。filters 的值只能取画像中已有的分类值。不要针对单个客户给建议。",
     }
     try:
-        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).responses.create(
+        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-5"),
-            input=[{"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}],
+            messages=[{"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}],
+            temperature=0.3,
         )
-        content = response.output_text.strip()
+        content = response.choices[0].message.content.strip()
         block = re.search(r"```(?:json)?\s*(.*?)```", content, flags=re.I | re.S)
         candidate = json.loads(block.group(1) if block else content)
         return validate_analysis_plan(candidate, profile, fallback)
@@ -736,8 +737,8 @@ def generate_sql(question: str) -> tuple[str, str]:
     schema = "customer_usage_summary(customer_id, industry, company_size, renewal_type, active_type, ownership, city_tier, use_times, max_cnt, type_cnt, use_period, max_success_day, renewal_days, annual_value, coverage, idle_high_value, two_week_trend, value_tier, risk_level, risk_score, package_products, used_products)"
     key = os.getenv("OPENAI_API_KEY")
     if key:
-        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).responses.create(model=os.getenv("OPENAI_MODEL", "gpt-5"), input=[{"role": "system", "content": f"Generate one DuckDB read-only SQL query only. Use only this schema: {schema}"}, {"role": "user", "content": question}])
-        return clean_sql(response.output_text), "openai"
+        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).chat.completions.create(model=os.getenv("OPENAI_MODEL", "gpt-5"), messages=[{"role": "system", "content": f"Generate one DuckDB read-only SQL query only. Use only this schema: {schema}"}, {"role": "user", "content": question}], temperature=0.2)
+        return clean_sql(response.choices[0].message.content), "openai"
     return rule_generate_sql(question), "demo_fallback"
 
 
