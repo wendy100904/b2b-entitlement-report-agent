@@ -25,3 +25,8 @@ data/
 Thumbs.db
 .vscode/
 .idea/
+
+# Node / React frontend build artifacts
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/*.tsbuildinfo

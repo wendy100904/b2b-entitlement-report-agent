@@ -10,7 +10,7 @@
 一个面向 B2B 客户成功团队的全栈数据分析工具——上传客户权益使用的 Excel/CSV，自动完成字段识别、续约风险分层诊断，并支持用自然语言查数据、一键导出图表化周报。
 
 - **我的角色**：全栈独立开发（前端 + 后端 + 数据分析 + AI 集成）
-- **技术栈**：Python · FastAPI · Pandas · DuckDB · Plotly · OpenAI Tool Calling · SQLAlchemy + SQLite
+- **技术栈**：Python · FastAPI · Pandas · DuckDB · Plotly · OpenAI Tool Calling · SQLAlchemy + SQLite · React 18 + TypeScript
 - **项目类型**：个人 / 学习项目
 - **在线体验**：〔发布后的稳定链接〕
 - **项目截图**：〔放 2–3 张：上传界面 / 诊断报告 KPI / 图表化周报〕
@@ -55,7 +55,7 @@ B2B 客户成功团队每周需要人工翻阅大量客户权益使用数据，�
 | Plotly | 图表可视化，生成周报图表 |
 | Uvicorn | ASGI 服务器，启动并对外提供服务 |
 | openpyxl / python-multipart | Excel 解析 / 文件上传接收 |
-| 原生 HTML/CSS/JS | 前端界面与交互，含导出 PDF |
+| React 18 + TypeScript | 前端（Vite 构建），组件化实现上传/映射/分析/周报/NL2SQL |
 
 ---
 
@@ -67,7 +67,7 @@ B2B 客户成功团队每周需要人工翻阅大量客户权益使用数据，�
 - 构建续约风险分层模型，结合覆盖率、到期天数、使用趋势多维打分并自动分群输出运营 SOP。
 - 基于 OpenAI Function Calling 实现多轮工具调用 Agent（数据集概况 / 只读 SQL / 客户详情 / 风险总览四个工具），SQL 出错可自我修正重试，输出自然语言结论，无密钥时三级降级不中断。
 - 用 SQLAlchemy + SQLite 实现数据持久化，上传会话跨重启保留，`DATABASE_URL` 可切换 PostgreSQL；用 Plotly 生成图表化周报并支持一键导出 PDF。
-- 设计 12+ 版本化 REST 接口与前后端同源部署。
+- 设计 12+ 版本化 REST 接口与前后端同源部署；前端使用 React 18 + TypeScript（Vite 构建）组件化实现。
 
 ---
 

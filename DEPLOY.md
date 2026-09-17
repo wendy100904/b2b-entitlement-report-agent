@@ -19,6 +19,8 @@ This is suitable only for demos or a trusted internal network. Uploaded sessions
 
 本项目根目录已含 `Dockerfile` 与 `render.yaml`，可直接在 Render 用 Blueprint 一键部署：
 
+> 前端说明：项目前端为 **React 18 + TypeScript**（`frontend-react/`）。`Dockerfile` 采用多阶段构建——先用 Node 构建 React 产物（`npm install && npm run build`），再拷贝到 Python 镜像；后端会优先托管 `frontend-react/dist`（未构建时回退到原生版 `frontend/`）。本地开发用 `npm run dev`（端口 5173，已配置 `/api` 代理到 8000）。
+
 1. 把**整个项目根目录**推到一个 Git 仓库（GitHub/GitLab 均可）。
 2. 登录 [Render](https://render.com) → New → **Blueprint** → 选择该仓库。Render 会读取根目录的 `render.yaml`，自动创建一个 Docker Web Service，健康检查用 `/api/v1/health`。
 3. （可选）在 Render 面板的 Environment 里填 `OPENAI_API_KEY`（`render.yaml` 已设为 `sync:false`，不会进代码库）。不填也能部署，Agent 会降级为规则查询。
