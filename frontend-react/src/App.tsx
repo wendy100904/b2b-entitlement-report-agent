@@ -38,7 +38,7 @@ export default function App() {
     setShowMapping(true);
     setShowAnalysis(true);
     setShowWeekly(false);
-    setShowAgent(false);
+    setShowAgent(true);
     setStep(2);
   }
 
