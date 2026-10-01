@@ -783,7 +783,7 @@ AGENT_TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "run_readonly_sql",
-            "description": "在当前客户数据集上执行只读 SQL（仅允许 SELECT / WITH 开头），表名为 customer_usage_summary，返回最多 200 行。支持 WHERE / GROUP BY / ORDER BY / 聚合函数（COUNT / AVG / SUM / ROUND / MIN / MAX）。用于计算客户数、均值、占比、排序等具体数值。若执行失败，请根据错误信息修正后重试。",
+            "description": "在当前客户数据集上执行只读 SQL（仅允许 SELECT / WITH 开头），表名为 customer_usage_summary，返回最多 200 行。支持 WHERE / GROUP BY / ORDER BY / 聚合函数（COUNT / AVG / SUM / ROUND / MIN / MAX）。用于回答任何可计算的业务分析问题——不限于续约风险，例如行业分布、客户分层、产品使用偏好、金额排序、活跃度对比等。若执行失败，请根据错误信息修正后重试。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -815,14 +815,14 @@ AGENT_TOOLS: list[dict[str, Any]] = [
     },
 ]
 
-AGENT_SYSTEM_PROMPT = f"""你是“企业权益周报分析 Agent”，面向 B2B 客户成功团队。你可以通过工具查询当前上传的客户权益数据集，回答关于续约风险、权益使用、增购机会等业务问题。
+AGENT_SYSTEM_PROMPT = f"""你是“B2B 客户数据分析 Agent”，面向客户成功与运营团队。你可以通过工具查询当前上传的客户数据集，回答任何基于数据的业务问题，包括但不限于：续约风险与到期预警、权益使用与覆盖率、增购与交叉推荐机会、行业/规模/城市层级分布、活跃度分层、产品使用偏好、客户画像与排名、合同金额分析等。
 
 数据集表名为 customer_usage_summary，字段说明：
 {SCHEMA_DESCRIPTION}
 
 工具使用规则：
 1. 动手前先调用 describe_dataset 了解数据概况（字段、快照日期、维度取值）。
-2. 需要具体数字或聚合结果时，调用 run_readonly_sql 执行只读 SQL；SQL 只允许 SELECT/WITH 开头，禁止 INSERT/UPDATE/DELETE/DROP/ALTER/CREATE。
+2. 需要具体数字或聚合结果时，调用 run_readonly_sql 执行只读 SQL；SQL 只允许 SELECT/WITH 开头，禁止 INSERT/UPDATE/DELETE/DROP/ALTER/CREATE。数据集内的任意字段组合（行业、规模、城市、活跃度、金额、产品、续约等）都可通过 SQL 分析，不要局限于续约问题。
 3. 涉及具体客户时，调用 get_customer_detail。
 4. 涉及整体风险概况时，可调用 get_risk_summary 快速获取。
 5. 工具返回 error 时，根据错误信息修正参数后重试（例如 SQL 语法错误、字段名写错、客户不存在）。
