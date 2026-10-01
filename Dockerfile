@@ -13,7 +13,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
-COPY frontend ./frontend
 # 从 Stage 1 拷贝 React 构建产物
 COPY --from=frontend-builder /build/dist ./frontend-react/dist
 COPY sample_data.csv sample_data_multiweek.csv ./

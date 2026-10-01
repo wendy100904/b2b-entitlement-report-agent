@@ -18,7 +18,7 @@ Full-stack deployable version with a **tool-calling SQL Agent** and **SQLite per
 ## Tech Stack
 
 - **Backend**: Python · FastAPI · Uvicorn · Pydantic · SQLAlchemy (SQLite; swappable to PostgreSQL via `DATABASE_URL`) · Pandas · NumPy · DuckDB · Plotly · OpenAI API
-- **Frontend**: React 18 + TypeScript + Vite (served by FastAPI; native HTML/JS fallback retained)
+- **Frontend**: React 18 + TypeScript + Vite (built with `npm run build`, served by FastAPI)
 - **Engineering**: GitHub Actions CI (pytest) · Docker / docker-compose · Render auto-deploy
 
 ## 快速开始（跨平台，推荐）
@@ -30,7 +30,10 @@ pip install -r requirements.txt
 # 2. （可选）配置 OpenAI 密钥以启用 Tool Calling Agent；不配也能用规则降级
 export OPENAI_API_KEY="你的密钥"      # Windows PowerShell: $env:OPENAI_API_KEY="你的密钥"
 
-# 3. 启动服务
+# 3. 构建 React 前端（首次或前端变更后）
+cd frontend-react && npm install && npm run build && cd ..
+
+# 4. 启动服务
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 

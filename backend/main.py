@@ -24,7 +24,6 @@ from sqlalchemy import create_engine, event, text
 
 
 ROOT = Path(__file__).resolve().parent.parent
-FRONTEND = ROOT / "frontend"
 REACT_DIST = ROOT / "frontend-react" / "dist"
 
 from dotenv import load_dotenv
@@ -1164,6 +1163,6 @@ def frontend_options():
     return Response(status_code=204)
 
 
-# 优先托管 React 构建产物（frontend-react/dist），未构建时回退到原生版（frontend/）
-STATIC_DIR = REACT_DIST if REACT_DIST.is_dir() else FRONTEND
+# 托管 React 构建产物（frontend-react/dist，需先 npm run build）
+STATIC_DIR = REACT_DIST
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
