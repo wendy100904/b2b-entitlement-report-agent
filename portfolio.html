@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wenyu Zou · 作品集 Portfolio</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='Arial'%3EWZ%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --navy:#0f2d43; --navy-2:#1a4a60; --teal:#0d9488; --teal-dark:#0b7a70;
+    --mint:#e6f6f3; --bg:#f3f6f7; --card:#fff; --line:#dfe7ea; --text:#152b3a;
+    --muted:#5f717d; --red:#d64c56; --amber:#c07d1a; --blue:#3d80a2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:15px/1.7 "Segoe UI",Inter,Arial,"Microsoft YaHei",sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* Hero */
+  header{background:linear-gradient(128deg,var(--navy) 6%,#163f57 55%,#0d6d6a 135%);color:#fff;padding:64px 0 56px;position:relative;overflow:hidden}
+  header:before{content:"";position:absolute;inset:0;background:radial-gradient(640px 300px at 85% -10%,rgba(121,223,190,.22),transparent 65%)}
+  .hero{position:relative}
+  .eyebrow{font-size:12px;letter-spacing:3px;color:#8fd6cd;font-weight:700;text-transform:uppercase}
+  h1{font-size:42px;font-weight:800;margin:12px 0 6px;letter-spacing:.3px}
+  .role{font-size:17px;color:#cfe4e6;font-weight:600}
+  .tagline{margin-top:16px;color:#a9c9cf;font-size:14.5px;max-width:720px}
+  .chips{display:flex;gap:9px;flex-wrap:wrap;margin-top:22px}
+  .chip{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);border-radius:999px;padding:6px 13px;font-size:12.5px;color:#e9f7f4;font-weight:500}
+  .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:10px;font-weight:700;font-size:13.5px;text-decoration:none;transition:.18s}
+  .btn.solid{background:linear-gradient(180deg,#12a094,var(--teal));color:#fff;border:1px solid var(--teal-dark);box-shadow:0 8px 20px -8px rgba(13,148,136,.6)}
+  .btn.ghost{background:rgba(255,255,255,.08);color:#eaf8f5;border:1px solid rgba(255,255,255,.3)}
+  .btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
+
+  /* Section */
+  main{padding:56px 0 30px}
+  .sec-head{display:flex;align-items:center;gap:14px;margin:0 0 8px}
+  .sec-head .no{font-size:12.5px;font-weight:800;color:var(--teal-dark);background:var(--mint);border:1px solid #cfe9e4;border-radius:999px;padding:4px 12px;letter-spacing:1px}
+  .sec-head h2{font-size:22px;font-weight:800;color:var(--navy)}
+  .sec-sub{color:var(--muted);font-size:14px;margin-bottom:30px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 18px 44px -22px rgba(15,45,67,.25);margin-bottom:38px}
+  .card-shot{position:relative;background:#1e1e1e;padding:20px 20px 0;border-bottom:1px solid var(--line)}
+  .card-shot img{display:block;width:100%;border-radius:10px 10px 0 0;box-shadow:0 -4px 30px rgba(0,0,0,.35)}
+  .card-body{padding:26px 28px 28px}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+  .card-head h3{font-size:20px;font-weight:800;color:var(--navy)}
+  .period{font-size:12px;color:var(--muted);font-weight:700;background:#eef2f4;border-radius:999px;padding:4px 11px;white-space:nowrap}
+  .role-line{font-size:13px;color:var(--teal-dark);font-weight:700;margin-bottom:12px}
+  .desc{color:var(--text);font-size:14.5px;margin-bottom:16px}
+  ul.bullets{list-style:none;display:grid;gap:9px;margin-bottom:20px}
+  ul.bullets li{position:relative;padding-left:22px;font-size:14px;color:#263b49}
+  ul.bullets li:before{content:"";position:absolute;left:2px;top:8px;width:7px;height:7px;border-radius:50%;background:var(--teal)}
+  ul.bullets li b{color:var(--navy)}
+  .stack{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+  .stack span{font-size:12px;font-weight:600;color:var(--teal-dark);background:var(--mint);border:1px solid #cfe9e4;border-radius:999px;padding:4px 11px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .actions .btn{background:#fff;color:var(--teal-dark);border:1px solid #c8e2dd;box-shadow:none;padding:9px 15px;font-size:13px}
+  .actions .btn:hover{background:var(--mint)}
+
+  .skillband{margin-top:46px;padding:30px 0 6px;border-top:1px solid var(--line)}
+  .skillband h3{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:16px}
+  .skillgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .skillitem{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .skillitem b{display:block;font-size:13px;color:var(--navy);margin-bottom:5px}
+  .skillitem span{font-size:12px;color:var(--muted)}
+
+  footer{background:var(--navy);color:#a9c9cf;padding:30px 0;margin-top:20px;font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center}
+  footer a{color:#8fd6cd;text-decoration:none;font-weight:600}
+
+  @media(max-width:860px){h1{font-size:32px}.skillgrid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.skillgrid{grid-template-columns:1fr}.card-body{padding:20px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hero">
+    <div class="eyebrow">Portfolio · 2026</div>
+    <h1>Wenyu Zou</h1>
+    <div class="role">Data Analyst &amp; Applied AI · NTU（南洋理工大学）</div>
+    <p class="tagline">能用数据回答业务问题，也能把一个想法从 PRD、高保真原型一路做到可部署的全栈产品。以下两个独立项目完整展示了「数据分析 → 产品设计 → 工程实现」的闭环能力。</p>
+    <div class="chips">
+      <span class="chip">Python · SQL · PySpark</span>
+      <span class="chip">FastAPI · React · Docker</span>
+      <span class="chip">K-Means · 关联规则 · 用户分层</span>
+      <span class="chip">PRD · 原型 · 数据产品</span>
+    </div>
+    <div class="links">
+      <a class="btn solid" href="https://github.com/wendy100904" target="_blank">GitHub 主页</a>
+      <a class="btn ghost" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank">打开线上 Demo</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="sec-head"><span class="no">01</span><h2>全栈数据产品</h2></div>
+  <div class="sec-sub">从产品定义到工程交付的完整闭环</div>
+
+  <!-- ============ 项目 1 ============ -->
+  <div class="card">
+    <div class="card-shot">
+      <img src="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/prototype/overview.png" alt="B2B Entitlement Report Agent 高保真原型总览">
+    </div>
+    <div class="card-body">
+      <div class="card-head">
+        <h3>B2B Entitlement Report Agent</h3>
+        <span class="period">全栈独立开发 · 2026.03 – 2026.08</span>
+      </div>
+      <div class="role-line">企业权益周报分析 Agent · Python / FastAPI / React 18 + TS / SQLite / OpenAI</div>
+      <p class="desc">为 B2B 客户成功团队打造的「上传即出报告」分析产品：上传 Excel/CSV 后自动完成字段映射、批量续约风险诊断、图表化周报与自然语言问答。含完整 PRD、Figma 风格高保真原型与可访问的线上 Demo。</p>
+      <ul class="bullets">
+        <li><b>产品闭环</b>：独立完成 PRD（需求卡 F1–F5、异常降级、验收清单）→ 高保真原型（5 界面 Figma 风格设计稿）→ 全栈实现 → 测试 → 部署</li>
+        <li><b>Tool-Calling Agent</b>：接入 OpenAI 自主选工具（describe_dataset / run_readonly_sql / get_customer_detail / get_risk_summary）循环执行，SQL 错误自纠；无密钥自动降级规则查询</li>
+        <li><b>工程化</b>：SQLAlchemy + SQLite 持久化（DATABASE_URL 可切 PostgreSQL）、GitHub Actions CI（pytest）、Docker / Render 自动部署</li>
+      </ul>
+      <div class="stack">
+        <span>Python</span><span>FastAPI</span><span>SQLAlchemy</span><span>SQLite</span><span>DuckDB</span>
+        <span>React 18 + TypeScript</span><span>Vite</span><span>Plotly</span><span>OpenAI API</span>
+        <span>GitHub Actions</span><span>Docker</span><span>Render</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent" target="_blank">GitHub 仓库</a>
+        <a class="btn" href="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/PRD.pdf" target="_blank">PRD（PDF）</a>
+        <a class="btn" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank">在线 Demo</a>
+        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent/tree/main/docs/prototype" target="_blank">高保真原型</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-head" style="margin-top:14px"><span class="no">02</span><h2>数据分析项目</h2></div>
+  <div class="sec-sub">面向业务的用户洞察与运营指导</div>
+
+  <!-- ============ 项目 2 ============ -->
+  <div class="card">
+    <div class="card-shot">
+      <img src="https://raw.githubusercontent.com/wendy100904/product-package-analysis/main/report/figures/00_dashboard.png" alt="平台各产品用户特征分析 · 业务概览看板">
+    </div>
+    <div class="card-body">
+      <div class="card-head">
+        <h3>平台各产品用户特征分析</h3>
+        <span class="period">数据分析 · 独立项目</span>
+      </div>
+      <div class="role-line">用户分层 × 产品交叉推荐 × 行为路径挖掘 · Python / PySpark / scikit-learn</div>
+      <p class="desc">基于招聘平台付费企业用户的多产品使用数据，构建「取数 → 特征工程 → 聚类分群 → 打标签 → 关联分析 → 路径挖掘」完整分析流程，产出可直接指导运营的用户分层结果。</p>
+      <ul class="bullets">
+        <li><b>分群与交叉推荐</b>：RFM + 使用强度 + 产品多样性 + 活跃度评分聚合特征；K-Means + 肘部法则（二阶差分）自动定 K，PCA 降维验证聚类效果；支持度 / 置信度 / 提升度挖掘可交叉推荐的产品组合</li>
+        <li><b>路径与画像</b>：时序序列子串频次统计提取长度 ≥ 3 的高频行为路径；构建「聚类标签 + 属性 / 城市 / 行业 / 薪资 / 活跃度」复合标签体系，输出分群画像与业务概览看板</li>
+        <li><b>生产规范</b>：PySpark 对接生产 Hive 取数；涉密数据代号化、占比化，附带可复现测试数据</li>
+      </ul>
+      <div class="stack">
+        <span>Python</span><span>PySpark</span><span>pandas</span><span>NumPy</span>
+        <span>scikit-learn</span><span>K-Means + PCA</span><span>关联规则</span>
+        <span>matplotlib</span><span>seaborn</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis" target="_blank">GitHub 仓库</a>
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/blob/main/analysis.ipynb" target="_blank">分析过程（notebook）</a>
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/tree/main/report" target="_blank">报告与图表</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="skillband">
+    <h3>核心能力</h3>
+    <div class="skillgrid">
+      <div class="skillitem"><b>数据分析</b><span>SQL · Python (pandas/NumPy) · PySpark · 统计建模 · A/B 指标</span></div>
+      <div class="skillitem"><b>机器学习</b><span>K-Means · PCA · 关联规则 · 用户分层与画像</span></div>
+      <div class="skillitem"><b>数据产品</b><span>PRD · 高保真原型 · 数据看板 · 自动化报表</span></div>
+      <div class="skillitem"><b>工程实现</b><span>FastAPI · React + TypeScript · SQLite/PostgreSQL · Docker · CI/CD</span></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Wenyu Zou · Data Analyst &amp; Applied AI</span>
+    <span><a href="https://github.com/wendy100904" target="_blank">github.com/wendy100904</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

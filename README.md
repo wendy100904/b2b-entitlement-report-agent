@@ -8,6 +8,10 @@ Full-stack deployable version with a **tool-calling SQL Agent** and **SQLite per
 4. Uploaded data is **persisted to SQLite** (swappable to PostgreSQL via `DATABASE_URL`), so sessions survive restarts.
 5. With `OPENAI_API_KEY` configured, the SQL Agent runs in **tool-calling mode**: it autonomously decides which tools to call (`describe_dataset` / `run_readonly_sql` / `get_customer_detail` / `get_risk_summary`), iterates until it can answer, and returns a natural-language conclusion. Without a key it degrades to rule-based demo queries.
 
+## Portfolio
+
+**Personal portfolio page** (GitHub Pages): [portfolio.html](portfolio.html) — showcases this project and the product-package user-segmentation analysis end to end.
+
 ## Documentation & Prototype
 
 - **Product Requirements Document (PRD)**: [PRD.pdf](docs/PRD.pdf) — background, goals/non-goals, requirement cards F1–F5, fallback & degradation, data model, and boundaries (v1.0 · 2026-08-01).
