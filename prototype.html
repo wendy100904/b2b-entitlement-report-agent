@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业权益周报分析 Agent · 高保真原型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23123046'/%3E%3Cpath d='M7 16V8l5 5 5-5v8' stroke='%23E8962C' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#F5F7FA; --card:#FFFFFF; --ink:#1F2937; --sub:#6B7280;
+    --navy:#123046; --accent:#E8962C; --line:#E5E7EB; --blue:#2E9BD6;
+    --red:#D64545; --amber:#E8962C; --green:#3E9A62;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); line-height:1.55;}
+  /* layout */
+  .app{display:flex; min-height:100vh;}
+  .side{width:200px; background:var(--navy); color:#E8EEF4; flex-shrink:0; position:sticky; top:0; height:100vh; padding:20px 14px;}
+  .side .brand{font-weight:700; font-size:14px; margin-bottom:2px;}
+  .side .tag{font-size:11px; color:#9FB3C6; margin-bottom:18px;}
+  .side nav a{display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:7px; color:#C9D6E1; font-size:13px; text-decoration:none; margin-bottom:3px;}
+  .side nav a:hover{background:rgba(255,255,255,.08); color:#fff;}
+  .side nav a.active{background:#1B4A66; color:#fff;}
+  .side nav a svg{flex-shrink:0;}
+  main{flex:1; padding:26px 32px 60px; max-width:1100px; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px;}
+  .topbar h1{font-size:19px;}
+  .topbar .hint{font-size:12px; color:var(--sub);}
+  .btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:8px 14px; border-radius:7px; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.ghost{background:transparent; border-color:#C7D2DC; color:#E8EEF4;}
+  .btn.sm{padding:6px 10px; font-size:12px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:11px; padding:18px 20px; margin-bottom:16px;}
+  .card h3{font-size:14px; margin-bottom:12px;}
+  /* kpi */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:11px; padding:14px 16px;}
+  .kpi .l{font-size:12px; color:var(--sub);}
+  .kpi .v{font-size:22px; font-weight:700; margin-top:4px;}
+  .kpi .d{font-size:11px; color:var(--sub); margin-top:2px;}
+  .kpi.up .v{color:var(--green);}
+  .kpi.warn .v{color:var(--accent);}
+  .kpi.danger .v{color:var(--red);}
+  /* tables */
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{border-bottom:1px solid var(--line); padding:8px 9px; text-align:left; white-space:nowrap;}
+  th{background:#F6F8FA; font-weight:600; color:#374151;}
+  tr:hover td{background:#FAFBFD;}
+  .pill{display:inline-block; font-size:11px; padding:2px 9px; border-radius:12px; font-weight:600;}
+  .pill.high{background:#FDE8E8; color:var(--red);}
+  .pill.med{background:#FEF3E2; color:#B45309;}
+  .pill.low{background:#E7F4EC; color:var(--green);}
+  /* bars */
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px;}
+  .bar-row .lab{width:88px; color:#374151;}
+  .bar-row .track{flex:1; height:14px; background:#EEF1F4; border-radius:7px; overflow:hidden;}
+  .bar-row .fill{height:100%; border-radius:7px;}
+  .bar-row .val{width:44px; text-align:right; color:var(--sub); font-variant-numeric:tabular-nums;}
+  /* two col */
+  .cols{display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start;}
+  .cols3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; align-items:start;}
+  /* upload */
+  .drop{border:2px dashed #C7D2DC; border-radius:11px; padding:40px 20px; text-align:center; background:#FAFBFC;}
+  .drop .t{font-size:14px; font-weight:600; margin-top:10px;}
+  .drop .s{font-size:12px; color:var(--sub); margin-top:4px;}
+  .mapping{border:1px solid var(--line); border-radius:8px; margin-top:14px; overflow-x:auto;}
+  .mapping .mh{background:#F3F6FA; padding:9px 12px; font-size:13px; font-weight:600;}
+  .mapping table td{padding:7px 9px;}
+  .fieldmap{display:flex; align-items:center; gap:8px; font-size:12px;}
+  .fieldmap .src{color:var(--sub);}
+  .fieldmap .to{color:var(--accent); font-weight:600;}
+  .auto{color:var(--green); font-size:11px;}
+  select{font-size:12px; padding:3px 6px; border:1px solid var(--line); border-radius:6px;}
+  /* chat */
+  .chat{background:#F8FAFC; border:1px solid var(--line); border-radius:10px; padding:14px;}
+  .msg{max-width:78%; padding:10px 13px; border-radius:10px; font-size:13px; margin-bottom:10px;}
+  .msg.user{background:var(--navy); color:#fff; margin-left:auto;}
+  .msg.bot{background:#fff; border:1px solid var(--line);}
+  .msg .res{font-size:12px; color:var(--sub); margin-top:6px;}
+  .chat .input{display:flex; gap:8px; margin-top:12px;}
+  .chat .input input{flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px;}
+  /* sop */
+  .sop{border-left:3px solid var(--accent); background:#FEF8F0; padding:10px 12px; border-radius:0 8px 8px 0; font-size:12.5px; margin-bottom:8px;}
+  .sop b{color:#B45309;}
+  .tag-chip{font-size:11px; padding:3px 8px; border-radius:6px; background:#EEF1F4; color:#374151; margin-right:6px;}
+  /* misc */
+  .muted{color:var(--sub); font-size:12px;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .metric-line{display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; border-bottom:1px dashed var(--line);}
+  .metric-line span{color:var(--sub);}
+  .metric-line b{font-variant-numeric:tabular-nums;}
+  /* toast */
+  #toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#1F2937; color:#fff; font-size:13px; padding:9px 16px; border-radius:8px; opacity:0; pointer-events:none; transition:opacity .18s; z-index:99;}
+  #toast.show{opacity:1;}
+  @media(max-width:880px){ .side{display:none;} .kpis{grid-template-columns:1fr 1fr;} .cols,.cols3,.grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- sidebar -->
+  <div class="side">
+    <div class="brand">权益周报分析 Agent</div>
+    <div class="tag">B2B Entitlement Agent</div>
+    <nav>
+      <a href="#upload" class="active" data-view="upload">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>数据上传
+      </a>
+      <a href="#risk" data-view="risk">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3l9-16zm0 6v5m0 3v.5"/></svg>风险诊断
+      </a>
+      <a href="#report" data-view="report">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5M8 17h8"/></svg>图表周报
+      </a>
+      <a href="#ask" data-view="ask">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-8 8H4l2-3a8 8 0 1115-5z"/></svg>数据问答
+      </a>
+    </nav>
+  </div>
+
+  <main>
+
+    <!-- ========== 视图：数据上传 ========== -->
+    <div id="view-upload" class="view">
+      <div class="topbar"><h1>数据上传</h1><div class="hint">上传客户权益使用明细，系统自动识别字段</div></div>
+      <div class="card">
+        <div class="drop">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#C7D2DC" stroke-width="1.6"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          <div class="t">拖拽文件到此处，或点击选择</div>
+          <div class="s">支持 .xlsx / .xls / .csv，每周一个客户快照</div>
+          <div style="margin-top:16px;"><button class="btn primary">选择文件</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="mapping">
+          <div class="mh">字段映射确认 <span style="font-weight:400;color:#6B7280;margin-left:8px;">已自动识别 12 个字段</span></div>
+          <table>
+            <tr><th>源列</th><th>映射到</th><th>示例值</th><th style="width:130px">操作</th></tr>
+            <tr><td><span class="fieldmap"><span class="src">客户编码</span> <span class="auto">● 自动</span></span></td><td>customer_code</td><td>CUST-0123</td><td><select><option>customer_code</option></select></td></tr>
+            <tr><td><span class="fieldmap"><span class="src">数据日期</span> <span class="auto">● 自动</span></span></td><td>data_date</td><td>2026-09-28</td><td><select><option>data_date</option></select></td></tr>
+            <tr><td><span class="fieldmap"><span class="src">行业</span> <span class="auto">● 自动</span></span></td><td>industry</td><td>制造</td><td><select><option>industry</option></select></td></tr>
+            <tr><td><span class="fieldmap"><span class="src">距续约天数</span> <span class="auto">● 自动</span></span></td><td>days_to_renewal</td><td>23</td><td><select><option>days_to_renewal</option></select></td></tr>
+            <tr><td><span class="fieldmap"><span class="src">年合同额</span> <span class="auto">● 自动</span></span></td><td>annual_contract_value</td><td>¥180,000</td><td><select><option>annual_contract_value</option></select></td></tr>
+            <tr><td><span class="fieldmap"><span class="src">未识别列</span></span></td><td>—</td><td>备注</td><td><select><option>忽略</option></select></td></tr>
+          </table>
+        </div>
+        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+          <button class="btn">取消</button>
+          <button class="btn primary" data-goto="risk">确认映射，开始分析 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 视图：风险诊断 ========== -->
+    <div id="view-risk" class="view" style="display:none">
+      <div class="topbar">
+        <h1>续约风险诊断</h1>
+        <div style="display:flex; gap:8px;">
+          <select><option>行业：全部</option><option>制造</option><option>金融</option></select>
+          <select><option>续约窗口：90 天内</option></select>
+          <select><option>价值档位：全部</option></select>
+          <button class="btn primary" data-goto="risk">重新分析</button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="l">客户总数</div><div class="v">1,248</div><div class="d">本周快照</div></div>
+        <div class="kpi danger"><div class="l">高危流失</div><div class="v">86</div><div class="d">占比 6.9%</div></div>
+        <div class="kpi warn"><div class="l">中危预警</div><div class="v">214</div><div class="d">占比 17.1%</div></div>
+        <div class="kpi up"><div class="l">续费增购机会</div><div class="v">302</div><div class="d">占比 24.2%</div></div>
+      </div>
+
+      <div class="cols">
+        <div class="card">
+          <h3>风险分层分布</h3>
+          <div class="bar-row"><div class="lab">健康</div><div class="track"><div class="fill" style="width:52%; background:#3E9A62;"></div></div><div class="val">646</div></div>
+          <div class="bar-row"><div class="lab">续费增购</div><div class="track"><div class="fill" style="width:24%; background:#2E9BD6;"></div></div><div class="val">302</div></div>
+          <div class="bar-row"><div class="lab">中危预警</div><div class="track"><div class="fill" style="width:17%; background:#E8962C;"></div></div><div class="val">214</div></div>
+          <div class="bar-row"><div class="lab">高危流失</div><div class="track"><div class="fill" style="width:7%; background:#D64545;"></div></div><div class="val">86</div></div>
+        </div>
+        <div class="card">
+          <h3>关键指标</h3>
+          <div class="metric-line"><span>平均权益覆盖率</span><b>63%</b></div>
+          <div class="metric-line"><span>平均使用趋势（周环比）</span><b style="color:#3E9A62">+4.2%</b></div>
+          <div class="metric-line"><span>距续约 ≤30 天客户</span><b style="color:#D64545">137</b></div>
+          <div class="metric-line"><span>大客户（高价值）风险占比</span><b style="color:#D64545">12.3%</b></div>
+          <div class="metric-line"><span>低覆盖（&lt;50%）客户</span><b>209</b></div>
+        </div>
+      </div>
+
+      <div class="cols" style="margin-top:16px;">
+        <div class="card">
+          <h3>优先客户池（按风险分值排序）</h3>
+          <table>
+            <tr><th>客户</th><th>行业</th><th>距续约</th><th>覆盖率</th><th>风险</th><th>ACV</th></tr>
+            <tr><td>CUST-0112 恒达制造</td><td>制造</td><td style="color:#D64545">8 天</td><td>21%</td><td><span class="pill high">高危流失</span></td><td>¥320K</td></tr>
+            <tr><td>CUST-0087 瑞信金融</td><td>金融</td><td style="color:#D64545">15 天</td><td>34%</td><td><span class="pill high">高危流失</span></td><td>¥540K</td></tr>
+            <tr><td>CUST-0231 云帆软件</td><td>互联网</td><td style="color:#E8962C">42 天</td><td>47%</td><td><span class="pill med">中危预警</span></td><td>¥260K</td></tr>
+            <tr><td>CUST-0145 盛和零售</td><td>零售</td><td>61 天</td><td>82%</td><td><span class="pill low">续费增购</span></td><td>¥190K</td></tr>
+          </table>
+          <div style="margin-top:12px;"><button class="btn sm">导出客户池 CSV</button></div>
+        </div>
+        <div class="card">
+          <h3>运营建议（SOP）</h3>
+          <div class="sop"><b>高危流失（86 家）</b>：优先触达距续约 ≤15 天且覆盖率 <40% 的客户，由 CSM 一对一挽回；同步重启权益引导。</div>
+          <div class="sop"><b>中危预警（214 家）</b>：批量发送使用引导与增购权益包；对下降趋势客户触发关怀跟进。</div>
+          <div class="sop"><b>续费增购（302 家）</b>：高覆盖率高价值客户推荐加购/升级，纳入续费谈判清单。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 视图：图表周报 ========== -->
+    <div id="view-report" class="view" style="display:none">
+      <div class="topbar">
+        <h1>图表化周报</h1>
+        <div style="display:flex; gap:8px;">
+          <button class="btn">周标签：2026-W39</button>
+          <button class="btn primary">导出 PDF</button>
+        </div>
+      </div>
+      <div class="card" style="background:#FFF; border:1px solid #E5E7EB;">
+        <div style="border-bottom:1px solid #E5E7EB; padding-bottom:12px; margin-bottom:14px;">
+          <div style="font-size:15px; font-weight:700;">企业权益使用周报 · 2026-W39</div>
+          <div class="muted">快照日期 2026-09-28 · 覆盖 1,248 家客户</div>
+        </div>
+        <div class="grid2">
+          <div>
+            <div class="bar-row"><div class="lab">健康</div><div class="track"><div class="fill" style="width:52%; background:#3E9A62;"></div></div><div class="val">646</div></div>
+            <div class="bar-row"><div class="lab">增购机会</div><div class="track"><div class="fill" style="width:24%; background:#2E9BD6;"></div></div><div class="val">302</div></div>
+            <div class="bar-row"><div class="lab">中危</div><div class="track"><div class="fill" style="width:17%; background:#E8962C;"></div></div><div class="val">214</div></div>
+            <div class="bar-row"><div class="lab">高危</div><div class="track"><div class="fill" style="width:7%; background:#D64545;"></div></div><div class="val">86</div></div>
+          </div>
+          <div>
+            <div class="metric-line"><span>客户总数</span><b>1,248</b></div>
+            <div class="metric-line"><span>高危流失</span><b style="color:#D64545">86</b></div>
+            <div class="metric-line"><span>平均覆盖率</span><b>63%</b></div>
+            <div class="metric-line"><span>待跟进高价值客户</span><b style="color:#D64545">37</b></div>
+          </div>
+        </div>
+        <div style="margin-top:14px; border-top:1px dashed #E5E7EB; padding-top:12px;">
+          <div class="muted" style="margin-bottom:8px;">本周重点：86 家高危流失客户，其中 37 家为高价值，需本周内完成一对一触达。</div>
+          <table>
+            <tr><th>客户</th><th>行业</th><th>距续约</th><th>覆盖率</th><th>风险</th></tr>
+            <tr><td>CUST-0112 恒达制造</td><td>制造</td><td>8 天</td><td>21%</td><td><span class="pill high">高危</span></td></tr>
+            <tr><td>CUST-0087 瑞信金融</td><td>金融</td><td>15 天</td><td>34%</td><td><span class="pill high">高危</span></td></tr>
+            <tr><td>CUST-0231 云帆软件</td><td>互联网</td><td>42 天</td><td>47%</td><td><span class="pill med">中危</span></td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="note" style="font-size:12px; color:#6B7280;">原型演示：周报为图表化 HTML，浏览器端一键导出 PDF（A4 分页、图表防截断、颜色保真）。</div>
+    </div>
+
+    <!-- ========== 视图：数据问答 ========== -->
+    <div id="view-ask" class="view" style="display:none">
+      <div class="topbar"><h1>自然语言数据问答</h1><div class="hint">用大白话查数据，自动转只读 SQL</div></div>
+      <div class="card">
+        <div class="chat">
+          <div class="msg bot">您好，我已连接本次上传的 1,248 家客户数据。请问想了解什么？</div>
+          <div class="msg user">权益覆盖率低于 50% 且距续约 30 天内的客户有哪些？</div>
+          <div class="msg bot">为您查询到 <b>29</b> 家客户（只读查询，未修改数据）。
+            <div class="res">SELECT customer_code, coverage, days_to_renewal FROM customer_pool WHERE coverage &lt; 0.5 AND days_to_renewal &lt;= 30 ORDER BY risk_score DESC LIMIT 5;</div>
+          </div>
+          <div class="msg bot">
+            <table style="font-size:12px;">
+              <tr><th>客户</th><th>覆盖率</th><th>距续约</th><th>风险</th></tr>
+              <tr><td>CUST-0112 恒达制造</td><td>21%</td><td>8 天</td><td><span class="pill high">高危</span></td></tr>
+              <tr><td>CUST-0087 瑞信金融</td><td>34%</td><td>15 天</td><td><span class="pill high">高危</span></td></tr>
+              <tr><td>CUST-0091 远景能源</td><td>41%</td><td>26 天</td><td><span class="pill med">中危</span></td></tr>
+            </table>
+            <div class="res">未配置 API 密钥时，将自动降级为规则化查询，仅返回有限演示结果。</div>
+          </div>
+          <div class="input">
+            <input type="text" placeholder="输入问题，如：本月高价值客户中风险最高的前 5 家是谁">
+            <button class="btn primary">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<script>
+  // 静态原型：仅做视图切换与演示反馈，无动画、无动态数据
+  var views = document.querySelectorAll('.view');
+  var links = document.querySelectorAll('.side nav a');
+  var toast = document.createElement('div');
+  toast.id = 'toast';
+  document.body.appendChild(toast);
+  var toastTimer;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 1600);
+  }
+  function show(name){
+    views.forEach(function(v){ v.style.display = (v.id === 'view-'+name) ? 'block' : 'none'; });
+    links.forEach(function(a){ a.classList.toggle('active', a.dataset.view === name); });
+    window.scrollTo(0,0);
+  }
+  links.forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); show(a.dataset.view); }); });
+  // 演示按钮：有 data-goto 的切换视图，其余弹 toast 反馈
+  document.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(e){
+      if (b.dataset.goto) { show(b.dataset.goto); return; }
+      e.preventDefault();
+      showToast('原型演示：' + b.textContent.trim());
+    });
+  });
+  // 默认显示上传视图
+  show('upload');
+</script>
+</body>
+</html>
