@@ -1,19 +1,25 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh" data-lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wenyu Zou · 作品集 Portfolio</title>
+<title>Wenyu Zou · Portfolio</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='Arial'%3EWZ%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --navy:#0f2d43; --navy-2:#1a4a60; --teal:#0d9488; --teal-dark:#0b7a70;
     --mint:#e6f6f3; --bg:#f3f6f7; --card:#fff; --line:#dfe7ea; --text:#152b3a;
-    --muted:#5f717d; --red:#d64c56; --amber:#c07d1a; --blue:#3d80a2;
+    --muted:#5f717d;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font:15px/1.7 "Segoe UI",Inter,Arial,"Microsoft YaHei",sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* 语言切换 */
+  html[data-lang="en"] .zh{display:none}
+  html[data-lang="zh"] .en{display:none}
+  .lang-btn{position:fixed;top:18px;right:22px;z-index:99;background:rgba(15,45,67,.72);color:#eaf8f5;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:7px 16px;font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.5px;backdrop-filter:blur(6px);transition:.18s}
+  .lang-btn:hover{background:rgba(15,45,67,.9)}
 
   /* Hero */
   header{background:linear-gradient(128deg,var(--navy) 6%,#163f57 55%,#0d6d6a 135%);color:#fff;padding:64px 0 56px;position:relative;overflow:hidden}
@@ -22,7 +28,7 @@
   .eyebrow{font-size:12px;letter-spacing:3px;color:#8fd6cd;font-weight:700;text-transform:uppercase}
   h1{font-size:42px;font-weight:800;margin:12px 0 6px;letter-spacing:.3px}
   .role{font-size:17px;color:#cfe4e6;font-weight:600}
-  .tagline{margin-top:16px;color:#a9c9cf;font-size:14.5px;max-width:720px}
+  .tagline{margin-top:16px;color:#a9c9cf;font-size:14.5px;max-width:760px}
   .chips{display:flex;gap:9px;flex-wrap:wrap;margin-top:22px}
   .chip{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);border-radius:999px;padding:6px 13px;font-size:12.5px;color:#e9f7f4;font-weight:500}
   .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
@@ -68,51 +74,53 @@
   footer .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center}
   footer a{color:#8fd6cd;text-decoration:none;font-weight:600}
 
-  @media(max-width:860px){h1{font-size:32px}.skillgrid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:860px){h1{font-size:32px}.skillgrid{grid-template-columns:repeat(2,1fr)}.lang-btn{top:12px;right:14px}}
   @media(max-width:520px){.skillgrid{grid-template-columns:1fr}.card-body{padding:20px}}
 </style>
 </head>
 <body>
 
+<button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
+
 <header>
   <div class="wrap hero">
-    <div class="eyebrow">Portfolio · 2026</div>
+    <div class="eyebrow"><span class="zh">作品集 · 2026</span><span class="en">Portfolio · 2026</span></div>
     <h1>Wenyu Zou</h1>
-    <div class="role">Data Analyst &amp; Applied AI · NTU（南洋理工大学）</div>
-    <p class="tagline">能用数据回答业务问题，也能把一个想法从 PRD、高保真原型一路做到可部署的全栈产品。以下两个独立项目完整展示了「数据分析 → 产品设计 → 工程实现」的闭环能力。</p>
+    <div class="role"><span class="zh">数据分析师 · 应用人工智能硕士 · 南洋理工大学（NTU）</span><span class="en">Data Analyst &amp; Applied AI · NTU</span></div>
+    <p class="tagline"><span class="zh">能用数据回答业务问题，也能把一个想法从 PRD、高保真原型一路做到可部署的全栈产品。以下两个独立项目完整展示了「数据分析 → 产品设计 → 工程实现」的闭环能力。</span><span class="en">I answer business questions with data, and I take ideas from PRD and hi-fi prototypes all the way to deployed full-stack products. The two projects below demonstrate the full loop: data analysis → product design → engineering delivery.</span></p>
     <div class="chips">
       <span class="chip">Python · SQL · PySpark</span>
       <span class="chip">FastAPI · React · Docker</span>
-      <span class="chip">K-Means · 关联规则 · 用户分层</span>
-      <span class="chip">PRD · 原型 · 数据产品</span>
+      <span class="chip"><span class="zh">K-Means · 关联规则 · 用户分层</span><span class="en">K-Means · Association Rules · Segmentation</span></span>
+      <span class="chip"><span class="zh">PRD · 原型 · 数据产品</span><span class="en">PRD · Prototyping · Data Products</span></span>
     </div>
     <div class="links">
-      <a class="btn solid" href="https://github.com/wendy100904" target="_blank">GitHub 主页</a>
-      <a class="btn ghost" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank">打开线上 Demo</a>
+      <a class="btn solid" href="https://github.com/wendy100904" target="_blank">GitHub</a>
+      <a class="btn ghost" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank"><span class="zh">打开线上 Demo</span><span class="en">Live Demo</span></a>
     </div>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="sec-head"><span class="no">01</span><h2>全栈数据产品</h2></div>
-  <div class="sec-sub">从产品定义到工程交付的完整闭环</div>
+  <div class="sec-head"><span class="no">01</span><h2><span class="zh">全栈数据产品</span><span class="en">Full-Stack Data Product</span></h2></div>
+  <div class="sec-sub"><span class="zh">从产品定义到工程交付的完整闭环</span><span class="en">Complete loop from product definition to engineering delivery</span></div>
 
-  <!-- ============ 项目 1 ============ -->
+  <!-- ============ Project 1 ============ -->
   <div class="card">
     <div class="card-shot">
-      <img src="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/prototype/overview.png" alt="B2B Entitlement Report Agent 高保真原型总览">
+      <img src="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/prototype/overview.png" alt="B2B Entitlement Report Agent hi-fi prototype overview">
     </div>
     <div class="card-body">
       <div class="card-head">
         <h3>B2B Entitlement Report Agent</h3>
-        <span class="period">全栈独立开发 · 2026.03 – 2026.08</span>
+        <span class="period"><span class="zh">全栈独立开发 · 2026.03 – 2026.08</span><span class="en">Solo Full-Stack · Mar 2026 – Aug 2026</span></span>
       </div>
-      <div class="role-line">企业权益周报分析 Agent · Python / FastAPI / React 18 + TS / SQLite / OpenAI</div>
-      <p class="desc">为 B2B 客户成功团队打造的「上传即出报告」分析产品：上传 Excel/CSV 后自动完成字段映射、批量续约风险诊断、图表化周报与自然语言问答。含完整 PRD、Figma 风格高保真原型与可访问的线上 Demo。</p>
+      <div class="role-line">Python / FastAPI / React 18 + TS / SQLite / OpenAI</div>
+      <p class="desc"><span class="zh">为 B2B 客户成功团队打造的「上传即出报告」分析产品：上传 Excel/CSV 后自动完成字段映射、批量续约风险诊断、图表化周报与自然语言问答。含完整 PRD、Figma 风格高保真原型与可访问的线上 Demo。</span><span class="en">An upload-to-report analytics product for B2B customer-success teams: auto field mapping, batch renewal-risk diagnosis, chart-based weekly reports, and natural-language querying after uploading Excel/CSV. Ships with a full PRD, Figma-style hi-fi prototypes and a live demo.</span></p>
       <ul class="bullets">
-        <li><b>产品闭环</b>：独立完成 PRD（需求卡 F1–F5、异常降级、验收清单）→ 高保真原型（5 界面 Figma 风格设计稿）→ 全栈实现 → 测试 → 部署</li>
-        <li><b>Tool-Calling Agent</b>：接入 OpenAI 自主选工具（describe_dataset / run_readonly_sql / get_customer_detail / get_risk_summary）循环执行，SQL 错误自纠；无密钥自动降级规则查询</li>
-        <li><b>工程化</b>：SQLAlchemy + SQLite 持久化（DATABASE_URL 可切 PostgreSQL）、GitHub Actions CI（pytest）、Docker / Render 自动部署</li>
+        <li><span class="zh"><b>产品闭环</b>：独立完成 PRD（需求卡 F1–F5、异常降级、验收清单）→ 高保真原型（5 界面设计稿）→ 全栈实现 → 测试 → 部署</span><span class="en"><b>Product loop</b>: own the full lifecycle — PRD (requirement cards F1–F5, failure fallbacks, acceptance criteria) → hi-fi prototype (5 screens) → full-stack build → testing → deployment</span></li>
+        <li><span class="zh"><b>Tool-Calling Agent</b>：接入 OpenAI 自主选工具（describe_dataset / run_readonly_sql / get_customer_detail / get_risk_summary）循环执行，SQL 错误自纠；无密钥自动降级为规则查询</span><span class="en"><b>Tool-Calling Agent</b>: OpenAI-driven autonomous tool selection (describe_dataset / run_readonly_sql / get_customer_detail / get_risk_summary) with self-correcting SQL; falls back to rule-based queries when no API key is set</span></li>
+        <li><span class="zh"><b>工程化</b>：SQLAlchemy + SQLite 持久化（DATABASE_URL 可切 PostgreSQL）、GitHub Actions CI（pytest）、Docker / Render 自动部署</span><span class="en"><b>Engineering</b>: SQLAlchemy + SQLite persistence (PostgreSQL-ready via DATABASE_URL), GitHub Actions CI (pytest), Docker / Render auto-deployment</span></li>
       </ul>
       <div class="stack">
         <span>Python</span><span>FastAPI</span><span>SQLAlchemy</span><span>SQLite</span><span>DuckDB</span>
@@ -120,64 +128,81 @@
         <span>GitHub Actions</span><span>Docker</span><span>Render</span>
       </div>
       <div class="actions">
-        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent" target="_blank">GitHub 仓库</a>
-        <a class="btn" href="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/PRD.pdf" target="_blank">PRD（PDF）</a>
-        <a class="btn" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank">在线 Demo</a>
-        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent/tree/main/docs/prototype" target="_blank">高保真原型</a>
+        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent" target="_blank">GitHub Repo</a>
+        <a class="btn" href="https://raw.githubusercontent.com/wendy100904/b2b-entitlement-report-agent/main/docs/PRD.pdf" target="_blank">PRD (PDF)</a>
+        <a class="btn" href="https://b2b-entitlement-report-agent.onrender.com" target="_blank"><span class="zh">在线 Demo</span><span class="en">Live Demo</span></a>
+        <a class="btn" href="https://github.com/wendy100904/b2b-entitlement-report-agent/tree/main/docs/prototype" target="_blank"><span class="zh">高保真原型</span><span class="en">Hi-Fi Prototype</span></a>
       </div>
     </div>
   </div>
 
-  <div class="sec-head" style="margin-top:14px"><span class="no">02</span><h2>数据分析项目</h2></div>
-  <div class="sec-sub">面向业务的用户洞察与运营指导</div>
+  <div class="sec-head" style="margin-top:14px"><span class="no">02</span><h2><span class="zh">数据分析项目</span><span class="en">Data Analytics Project</span></h2></div>
+  <div class="sec-sub"><span class="zh">面向业务的用户洞察与运营指导</span><span class="en">Business-oriented user insights and operations guidance</span></div>
 
-  <!-- ============ 项目 2 ============ -->
+  <!-- ============ Project 2 ============ -->
   <div class="card">
     <div class="card-shot">
-      <img src="https://raw.githubusercontent.com/wendy100904/product-package-analysis/main/report/figures/00_dashboard.png" alt="平台各产品用户特征分析 · 业务概览看板">
+      <img src="https://raw.githubusercontent.com/wendy100904/product-package-analysis/main/report/figures/00_dashboard.png" alt="Platform product user analysis · business overview dashboard">
     </div>
     <div class="card-body">
       <div class="card-head">
-        <h3>平台各产品用户特征分析</h3>
-        <span class="period">数据分析 · 独立项目</span>
+        <h3><span class="zh">平台各产品用户特征分析</span><span class="en">User Segmentation &amp; Product Affinity Analysis</span></h3>
+        <span class="period"><span class="zh">数据分析 · 独立项目</span><span class="en">Data Analytics · Solo Project</span></span>
       </div>
-      <div class="role-line">用户分层 × 产品交叉推荐 × 行为路径挖掘 · Python / PySpark / scikit-learn</div>
-      <p class="desc">基于招聘平台付费企业用户的多产品使用数据，构建「取数 → 特征工程 → 聚类分群 → 打标签 → 关联分析 → 路径挖掘」完整分析流程，产出可直接指导运营的用户分层结果。</p>
+      <div class="role-line">Python / PySpark / scikit-learn</div>
+      <p class="desc"><span class="zh">基于招聘平台付费企业用户的多产品使用数据，构建「取数 → 特征工程 → 聚类分群 → 打标签 → 关联分析 → 路径挖掘」完整分析流程，产出可直接指导运营的用户分层结果。</span><span class="en">Built an end-to-end analytics pipeline — extraction → feature engineering → K-Means segmentation → labeling → association mining → path mining — on multi-product usage data of paying enterprise users, producing operationally actionable segmentation.</span></p>
       <ul class="bullets">
-        <li><b>分群与交叉推荐</b>：RFM + 使用强度 + 产品多样性 + 活跃度评分聚合特征；K-Means + 肘部法则（二阶差分）自动定 K，PCA 降维验证聚类效果；支持度 / 置信度 / 提升度挖掘可交叉推荐的产品组合</li>
-        <li><b>路径与画像</b>：时序序列子串频次统计提取长度 ≥ 3 的高频行为路径；构建「聚类标签 + 属性 / 城市 / 行业 / 薪资 / 活跃度」复合标签体系，输出分群画像与业务概览看板</li>
-        <li><b>生产规范</b>：PySpark 对接生产 Hive 取数；涉密数据代号化、占比化，附带可复现测试数据</li>
+        <li><span class="zh"><b>分群与交叉推荐</b>：RFM + 使用强度 + 产品多样性 + 活跃度评分聚合特征；K-Means + 肘部法则（二阶差分）自动定 K，PCA 降维验证；支持度 / 置信度 / 提升度挖掘可交叉推荐的产品组合</span><span class="en"><b>Segmentation &amp; cross-sell</b>: aggregated RFM + usage intensity + product diversity + activity scores; K-Means with elbow method (2nd-order difference) auto-selects K, PCA validates clusters; support/confidence/lift mined for cross-sell product pairs</span></li>
+        <li><span class="zh"><b>路径与画像</b>：时序子串频次统计提取长度 ≥ 3 的高频行为路径；构建「聚类标签 + 属性 / 城市 / 行业 / 薪资 / 活跃度」复合标签体系，输出分群画像与业务概览看板</span><span class="en"><b>Paths &amp; profiles</b>: frequent behavioral paths (length ≥ 3) via time-series substring frequency; composite tagging (cluster + attributes/city/industry/salary/activity) feeding segment profiles and an executive overview dashboard</span></li>
+        <li><span class="zh"><b>生产规范</b>：PySpark 对接生产 Hive 取数；涉密数据代号化、占比化，附带可复现测试数据</span><span class="en"><b>Production practice</b>: PySpark reads from production Hive; sensitive data anonymized and ratio-based, with reproducible test data</span></li>
       </ul>
       <div class="stack">
         <span>Python</span><span>PySpark</span><span>pandas</span><span>NumPy</span>
-        <span>scikit-learn</span><span>K-Means + PCA</span><span>关联规则</span>
+        <span>scikit-learn</span><span>K-Means + PCA</span><span>Association Rules</span>
         <span>matplotlib</span><span>seaborn</span>
       </div>
       <div class="actions">
-        <a class="btn" href="https://github.com/wendy100904/product-package-analysis" target="_blank">GitHub 仓库</a>
-        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/blob/main/analysis.ipynb" target="_blank">分析过程（notebook）</a>
-        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/tree/main/report" target="_blank">报告与图表</a>
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis" target="_blank">GitHub Repo</a>
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/blob/main/analysis.ipynb" target="_blank"><span class="zh">分析过程（notebook）</span><span class="en">Analysis Notebook</span></a>
+        <a class="btn" href="https://github.com/wendy100904/product-package-analysis/tree/main/report" target="_blank"><span class="zh">报告与图表</span><span class="en">Report &amp; Charts</span></a>
       </div>
     </div>
   </div>
 
   <div class="skillband">
-    <h3>核心能力</h3>
+    <h3><span class="zh">核心能力</span><span class="en">Core Strengths</span></h3>
     <div class="skillgrid">
-      <div class="skillitem"><b>数据分析</b><span>SQL · Python (pandas/NumPy) · PySpark · 统计建模 · A/B 指标</span></div>
-      <div class="skillitem"><b>机器学习</b><span>K-Means · PCA · 关联规则 · 用户分层与画像</span></div>
-      <div class="skillitem"><b>数据产品</b><span>PRD · 高保真原型 · 数据看板 · 自动化报表</span></div>
-      <div class="skillitem"><b>工程实现</b><span>FastAPI · React + TypeScript · SQLite/PostgreSQL · Docker · CI/CD</span></div>
+      <div class="skillitem"><b><span class="zh">数据分析</span><span class="en">Data Analytics</span></b><span>SQL · Python (pandas/NumPy) · PySpark · <span class="zh">统计建模</span><span class="en">Statistical Modeling</span></span></div>
+      <div class="skillitem"><b><span class="zh">机器学习</span><span class="en">Machine Learning</span></b><span>K-Means · PCA · <span class="zh">关联规则 · 用户分层与画像</span><span class="en">Association Rules · Segmentation &amp; Profiling</span></span></div>
+      <div class="skillitem"><b><span class="zh">数据产品</span><span class="en">Data Products</span></b><span>PRD · <span class="zh">高保真原型 · 数据看板 · 自动化报表</span><span class="en">Hi-Fi Prototyping · Dashboards · Automated Reporting</span></span></div>
+      <div class="skillitem"><b><span class="zh">工程实现</span><span class="en">Engineering</span></b><span>FastAPI · React + TypeScript · SQLite/PostgreSQL · Docker · CI/CD</span></div>
     </div>
   </div>
 </main>
 
 <footer>
   <div class="wrap">
-    <span>Wenyu Zou · Data Analyst &amp; Applied AI</span>
+    <span>Wenyu Zou · <span class="zh">数据分析 &amp; 应用人工智能</span><span class="en">Data Analytics &amp; Applied AI</span></span>
     <span><a href="https://github.com/wendy100904" target="_blank">github.com/wendy100904</a></span>
   </div>
 </footer>
+
+<script>
+(function(){
+  var saved = null;
+  try { saved = localStorage.getItem('portfolio-lang'); } catch(e){}
+  document.documentElement.setAttribute('data-lang', (saved === 'en') ? 'en' : 'zh');
+  var btn = document.getElementById('langBtn');
+  btn.textContent = (saved === 'en') ? '中文' : 'EN';
+})();
+function toggleLang(){
+  var html = document.documentElement;
+  var next = html.getAttribute('data-lang') === 'en' ? 'zh' : 'en';
+  html.setAttribute('data-lang', next);
+  document.getElementById('langBtn').textContent = (next === 'en') ? '中文' : 'EN';
+  try { localStorage.setItem('portfolio-lang', next); } catch(e){}
+}
+</script>
 
 </body>
 </html>
