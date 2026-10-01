@@ -10,7 +10,7 @@ Full-stack deployable version with a **tool-calling SQL Agent** and **SQLite per
 
 ## Portfolio
 
-**Personal portfolio page** (GitHub Pages): [portfolio.html](portfolio.html) — showcases this project and the product-package user-segmentation analysis end to end.
+**Personal portfolio page**: https://wendy100904.github.io/ — showcases this project and the product-package user-segmentation analysis end to end.
 
 ## Documentation & Prototype
 
