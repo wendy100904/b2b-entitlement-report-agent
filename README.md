@@ -8,6 +8,19 @@ Full-stack deployable version with a **tool-calling SQL Agent** and **SQLite per
 4. Uploaded data is **persisted to SQLite** (swappable to PostgreSQL via `DATABASE_URL`), so sessions survive restarts.
 5. With `OPENAI_API_KEY` configured, the SQL Agent runs in **tool-calling mode**: it autonomously decides which tools to call (`describe_dataset` / `run_readonly_sql` / `get_customer_detail` / `get_risk_summary`), iterates until it can answer, and returns a natural-language conclusion. Without a key it degrades to rule-based demo queries.
 
+## Documentation & Prototype
+
+- **Product Requirements Document (PRD)**: [PRD.pdf](docs/PRD.pdf) — background, goals/non-goals, requirement cards F1–F5, fallback & degradation, data model, and boundaries (v1.0 · 2026-08-01).
+- **Hi-fi Prototype (Figma-style canvas)**: [overview](docs/prototype/overview.png) — 5 screens covering the full loop: upload → field mapping → customer-pool diagnosis → weekly report → SQL Agent.
+  - [01 · Upload](docs/prototype/01-upload.png) · [02 · Field mapping](docs/prototype/02-mapping.png) · [03 · Analysis](docs/prototype/03-analysis.png) · [04 · Weekly report](docs/prototype/04-weekly-report.png) · [05 · SQL Agent](docs/prototype/05-sql-agent.png)
+- **Live Demo**: https://b2b-entitlement-report-agent.onrender.com
+
+## Tech Stack
+
+- **Backend**: Python · FastAPI · Uvicorn · Pydantic · SQLAlchemy (SQLite; swappable to PostgreSQL via `DATABASE_URL`) · Pandas · NumPy · DuckDB · Plotly · OpenAI API
+- **Frontend**: React 18 + TypeScript + Vite (served by FastAPI; native HTML/JS fallback retained)
+- **Engineering**: GitHub Actions CI (pytest) · Docker / docker-compose · Render auto-deploy
+
 ## 快速开始（跨平台，推荐）
 
 ```bash
