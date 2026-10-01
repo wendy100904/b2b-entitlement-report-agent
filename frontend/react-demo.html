@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>React Demo — 企业权益 Agent</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+body{font:14px/1.6 Arial,"Microsoft YaHei",sans-serif;background:#f0f4f5;margin:0;padding:20px}
+.box{max-width:800px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+h1{font-size:20px;color:#0f2d43;margin:0 0 4px}
+.sub{color:#6b7c86;font-size:13px;margin-bottom:20px}
+button{background:#0d9488;color:#fff;border:0;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:600}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,textarea{width:100%;padding:9px;border:1px solid #cdd9de;border-radius:8px;box-sizing:border-box;margin:6px 0}
+textarea{min-height:70px}
+.row{display:flex;gap:10px;align-items:end}
+.result{background:#f4faf9;border-left:3px solid #0d9488;padding:12px;margin-top:14px;border-radius:0 8px 8px 0;white-space:pre-wrap}
+pre{background:#123036;color:#dff3ef;padding:12px;border-radius:8px;overflow:auto;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+td,th{border-bottom:1px solid #e2e9ec;padding:8px;text-align:left}
+th{color:#6b7c86;font-size:11px;text-transform:uppercase}
+.tag{display:inline-block;background:#e6f6f3;color:#0b7a70;padding:2px 8px;border-radius:99px;font-size:11px;margin-right:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef } = React;
+
+function App() {
+  const [sessionId, setSessionId] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [question, setQuestion] = useState("各行业高危客户有多少？");
+  const [answer, setAnswer] = useState("");
+  const [sql, setSql] = useState("");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef(null);
+
+  const API = "/api/v1";
+
+  async function upload() {
+    const f = fileRef.current.files[0];
+    if (!f) return alert("请选文件");
+    setUploading(true); setUploadMsg("上传中...");
+    const fd = new FormData(); fd.append("file", f);
+    try {
+      const r = await fetch(API + "/uploads", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "上传失败");
+      setSessionId(d.session_id);
+      setUploadMsg(`✓ 上传成功：${d.rows} 行，${d.snapshot_count} 个快照`);
+    } catch (e) { setUploadMsg("✗ " + e.message); }
+    setUploading(false);
+  }
+
+  async function ask() {
+    if (!sessionId) return alert("请先上传数据");
+    setLoading(true); setAnswer("");
+    try {
+      const r = await fetch(API + "/agent/sql-queries", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, question })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "查询失败");
+      setAnswer(d.answer || "");
+      setSql(d.sql || "");
+      setRows(d.rows || []);
+    } catch (e) { setAnswer("✗ " + e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="box">
+      <h1>企业权益 Agent（React 版 Demo）</h1>
+      <p className="sub">同一个后端，前端换成 React + Hooks 实现</p>
+
+      <div className="row">
+        <input type="file" ref={fileRef} accept=".xlsx,.xls,.csv" />
+        <button onClick={upload} disabled={uploading}>上传</button>
+      </div>
+      <p style={{fontSize:12,color:"#0b7a70"}}>{uploadMsg}</p>
+
+      <hr style={{border:0,borderTop:"1px solid #e2e9ec",margin:"18px 0"}}/>
+
+      <h3 style={{margin:"0 0 8px",fontSize:15}}>NL2SQL 自然语言查询</h3>
+      <textarea value={question} onChange={e=>setQuestion(e.target.value)} />
+      <button onClick={ask} disabled={loading || !sessionId}>
+        {loading ? "思考中..." : "提问"}
+      </button>
+
+      {answer && <div className="result"><b>结论：</b>{answer}</div>}
+      {sql && <pre>{sql}</pre>}
+      {rows.length > 0 && (
+        <table>
+          <thead><tr>{Object.keys(rows[0]).map(c=><th key={c}>{c}</th>)}</tr></thead>
+          <tbody>
+            {rows.slice(0,10).map((r,i)=>(
+              <tr key={i}>{Object.keys(rows[0]).map(c=><td key={c}>{String(r[c])}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <p style={{marginTop:16,fontSize:12,color:"#6b7c86"}}>
+        <span className="tag">React 18</span><span className="tag">useState</span><span className="tag">useRef</span><span className="tag">函数组件</span>
+      </p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

@@ -18,14 +18,23 @@ import plotly.io as pio
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
 from pydantic import BaseModel
+from sqlalchemy import create_engine, event, text
 
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
+REACT_DIST = ROOT / "frontend-react" / "dist"
+
+from dotenv import load_dotenv
+load_dotenv(ROOT / ".env")
+
 HIGH_VALUE = {"简历快读", "智能邀约", "超级聊聊"}
-SESSIONS: dict[str, dict[str, pd.DataFrame]] = {}
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "30"))
+MAX_AGENT_ITERATIONS = int(os.getenv("MAX_AGENT_ITERATIONS", "6"))
+DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{(ROOT / 'entitlement.db').as_posix()}"
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
 FIELDS = ["customer_id", "data_date", "industry", "company_size", "renewal_type", "active_type", "ownership", "city_tier", "package_products", "used_products", "use_times", "max_cnt", "type_cnt", "use_period", "max_success_day", "renewal_days", "annual_value"]
 SEGMENT_FIELDS = ["industry", "company_size", "renewal_type", "active_type"]
@@ -42,6 +51,12 @@ CANDIDATES = {
     "use_period": ["use_period", "使用时长"], "max_success_day": ["max_success_day", "最大连续使用天数"],
     "renewal_days": ["renewal_days", "距到期天数", "续费倒计时"], "annual_value": ["annual_value", "年合同金额", "合同金额", "合同价值"],
 }
+
+# ---- 持久化相关常量 ----
+STORAGE_LIST_FIELDS = ["package_products", "used_products"]
+STORAGE_NUMERIC_FIELDS = ["use_times", "max_cnt", "type_cnt", "use_period", "max_success_day", "renewal_days", "annual_value", "coverage", "idle_high_value", "two_week_trend", "risk_score"] + [f"week_{i}" for i in range(1, 9)]
+DERIVED_FIELDS = ["coverage", "idle_high_value", "two_week_trend", "value_tier", "risk_level", "risk_score"] + [f"week_{i}" for i in range(1, 9)]
+USAGE_COLUMNS = ["session_id", "data_date", "customer_id"] + [f for f in FIELDS if f not in ("customer_id", "data_date")] + ["coverage", "idle_high_value", "two_week_trend", "value_tier", "risk_level", "risk_score"] + [f"week_{i}" for i in range(1, 9)]
 
 
 class AnalyzeRequest(BaseModel):
@@ -85,6 +100,220 @@ class AnalysisPlanRequest(BaseModel):
     mapping: dict[str, str | None]
     goal: str
 
+
+# ============================================================
+# 数据库层（默认 SQLite，可通过 DATABASE_URL 切换 PostgreSQL 等）
+# ============================================================
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if IS_SQLITE else {},
+    pool_pre_ping=True,
+)
+
+if IS_SQLITE:
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
+
+
+def init_db() -> None:
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS uploads (
+                session_id TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                rows INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                mapping TEXT NOT NULL,
+                snapshots TEXT NOT NULL
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS upload_raw (
+                session_id TEXT PRIMARY KEY,
+                payload TEXT NOT NULL
+            )
+        """))
+        conn.execute(text(f"""
+            CREATE TABLE IF NOT EXISTS customer_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {", ".join(f"{column} TEXT" for column in USAGE_COLUMNS)}
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_usage_session ON customer_usage(session_id, data_date)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS analysis_snapshot (
+                session_id TEXT PRIMARY KEY,
+                snapshot_date TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """))
+
+
+def _serialize_record(record: dict[str, Any]) -> dict[str, Any]:
+    row = dict(record)
+    for field in STORAGE_LIST_FIELDS:
+        value = row.get(field)
+        if isinstance(value, (list, tuple)):
+            row[field] = json.dumps(list(value), ensure_ascii=False)
+        elif value is None or (isinstance(value, float) and np.isnan(value)):
+            row[field] = "[]"
+    if isinstance(row.get("data_date"), (pd.Timestamp, datetime, np.datetime64)):
+        row["data_date"] = pd.Timestamp(row["data_date"]).strftime("%Y-%m-%d")
+    return row
+
+
+def _deserialize_record(record: dict[str, Any]) -> dict[str, Any]:
+    row = dict(record)
+    for field in STORAGE_LIST_FIELDS:
+        value = row.get(field)
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                row[field] = parsed if isinstance(parsed, list) else ([str(parsed)] if parsed else [])
+            except Exception:
+                row[field] = [value] if value else []
+    return row
+
+
+def df_to_db_rows(df: pd.DataFrame, session_id: str) -> list[dict[str, Any]]:
+    rows = []
+    for record in df.to_dict(orient="records"):
+        row = _serialize_record(record)
+        row["session_id"] = session_id
+        rows.append({column: row.get(column) for column in USAGE_COLUMNS})
+    return rows
+
+
+def df_from_db_rows(rows: list[dict[str, Any]]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(columns=[column for column in USAGE_COLUMNS if column != "session_id"])
+    records = [_deserialize_record(row) for row in rows]
+    df = pd.DataFrame(records)
+    for field in STORAGE_NUMERIC_FIELDS:
+        if field in df.columns:
+            df[field] = pd.to_numeric(df[field], errors="coerce")
+    if "data_date" in df.columns:
+        df["data_date"] = pd.to_datetime(df["data_date"], errors="coerce").dt.normalize()
+    return df
+
+
+def save_upload(session_id: str, filename: str, row_count: int, mapping: dict[str, str | None], snapshots: list[str], raw_df: pd.DataFrame, normalized_df: pd.DataFrame) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO uploads (session_id, filename, rows, created_at, mapping, snapshots) VALUES (:sid, :filename, :rows, :created_at, :mapping, :snapshots)"),
+            {"sid": session_id, "filename": filename, "rows": row_count, "created_at": datetime.now(timezone.utc).isoformat(),
+             "mapping": json.dumps(mapping, ensure_ascii=False), "snapshots": json.dumps(snapshots)},
+        )
+        conn.execute(
+            text("INSERT INTO upload_raw (session_id, payload) VALUES (:sid, :payload)"),
+            {"sid": session_id, "payload": json.dumps(raw_df.to_dict(orient="records"), ensure_ascii=False, default=str)},
+        )
+        _replace_usage_rows(conn, session_id, normalized_df)
+
+
+def _replace_usage_rows(conn: Any, session_id: str, normalized_df: pd.DataFrame) -> None:
+    conn.execute(text("DELETE FROM customer_usage WHERE session_id = :sid"), {"sid": session_id})
+    rows = df_to_db_rows(normalized_df, session_id)
+    if rows:
+        placeholders = ", ".join(f":{column}" for column in USAGE_COLUMNS)
+        conn.execute(text(f"INSERT INTO customer_usage ({', '.join(USAGE_COLUMNS)}) VALUES ({placeholders})"), rows)
+
+
+def get_upload_meta(session_id: str) -> dict[str, Any] | None:
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT * FROM uploads WHERE session_id = :sid"), {"sid": session_id}).mappings().first()
+    if not row:
+        return None
+    return {
+        "session_id": row["session_id"],
+        "filename": row["filename"],
+        "rows": row["rows"],
+        "created_at": row["created_at"],
+        "mapping": json.loads(row["mapping"]),
+        "snapshots": json.loads(row["snapshots"]),
+    }
+
+
+def get_raw_df(session_id: str) -> pd.DataFrame | None:
+    with engine.connect() as conn:
+        payload = conn.execute(text("SELECT payload FROM upload_raw WHERE session_id = :sid"), {"sid": session_id}).scalar_one_or_none()
+    if payload is None:
+        return None
+    records = json.loads(payload)
+    return pd.DataFrame.from_records(records) if records else pd.DataFrame()
+
+
+def load_customer_usage(session_id: str) -> pd.DataFrame:
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT * FROM customer_usage WHERE session_id = :sid ORDER BY data_date, customer_id"),
+            {"sid": session_id},
+        ).mappings().all()
+    return df_from_db_rows([dict(row) for row in rows])
+
+
+def save_analysis_snapshot(session_id: str, snapshot_date: str, df: pd.DataFrame) -> None:
+    payload = json.dumps([_serialize_record(record) for record in df.to_dict(orient="records")], ensure_ascii=False, default=str)
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO analysis_snapshot (session_id, snapshot_date, payload, created_at)
+                VALUES (:sid, :snapshot_date, :payload, :created_at)
+                ON CONFLICT(session_id) DO UPDATE SET snapshot_date = :snapshot_date, payload = :payload, created_at = :created_at
+            """),
+            {"sid": session_id, "snapshot_date": snapshot_date, "payload": payload, "created_at": datetime.now(timezone.utc).isoformat()},
+        )
+
+
+def load_analysis_snapshot(session_id: str) -> tuple[pd.DataFrame, str] | None:
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT snapshot_date, payload FROM analysis_snapshot WHERE session_id = :sid"),
+            {"sid": session_id},
+        ).mappings().first()
+    if not row:
+        return None
+    records = json.loads(row["payload"])
+    df = df_from_db_rows(records) if records else pd.DataFrame()
+    return df, row["snapshot_date"]
+
+
+def count_uploads() -> int:
+    with engine.connect() as conn:
+        return int(conn.execute(text("SELECT COUNT(*) FROM uploads")).scalar_one())
+
+
+def resolve_session(session_id: str) -> dict[str, Any]:
+    meta = get_upload_meta(session_id)
+    if not meta:
+        raise HTTPException(404, "上传会话不存在或已被清理，请重新上传文件")
+    return meta
+
+
+def resolve_normalized(session_id: str, mapping: dict[str, str | None]) -> pd.DataFrame:
+    """返回规范化后的客户数据。若映射与落库时不同，则基于原始数据重新规范化并刷新数据库。"""
+    meta = resolve_session(session_id)
+    if mapping != meta["mapping"]:
+        raw = get_raw_df(session_id)
+        normalized = normalise(raw, mapping)
+        with engine.begin() as conn:
+            _replace_usage_rows(conn, session_id, normalized)
+            conn.execute(text("UPDATE uploads SET mapping = :mapping WHERE session_id = :sid"),
+                         {"mapping": json.dumps(mapping, ensure_ascii=False), "sid": session_id})
+        return normalized
+    return load_customer_usage(session_id)
+
+
+# ============================================================
+# 数据清洗与风险模型（与原实现保持一致）
+# ============================================================
 
 def infer_mapping(columns: list[str]) -> dict[str, str | None]:
     lowered = {re.sub(r"[\s_\-()（）]", "", c.lower()): c for c in columns}
@@ -314,12 +543,12 @@ def suggest_analysis_plan(df: pd.DataFrame, mapping: dict[str, str | None], goal
         "instruction": "你是 B2B 商业化数据负责人。只返回 JSON，不要解释。基于经营问题和数据画像，规划一个可执行的批量分析方案。必须输出 mode、primary_dimension、focus_dimensions(最多3个)、renewal_max(30/60/90/180)、filters、metrics、ranking_rule、report_sections、actions。filters 的值只能取画像中已有的分类值。不要针对单个客户给建议。",
     }
     try:
-        from openai import OpenAI
-        response = OpenAI(api_key=key).responses.create(
+        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-5"),
-            input=[{"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}],
+            messages=[{"role": "user", "content": json.dumps(prompt, ensure_ascii=False)}],
+            temperature=0.3,
         )
-        content = response.output_text.strip()
+        content = response.choices[0].message.content.strip()
         block = re.search(r"```(?:json)?\s*(.*?)```", content, flags=re.I | re.S)
         candidate = json.loads(block.group(1) if block else content)
         return validate_analysis_plan(candidate, profile, fallback)
@@ -470,6 +699,10 @@ def weekly_report_html(df: pd.DataFrame, title: str, week_label: str, focus_dime
     return f"""<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><title>{title}</title><style>body{{font:14px Arial,'Microsoft YaHei',sans-serif;color:#18313f;max-width:1100px;margin:32px auto;padding:0 24px}}h1{{font-size:28px;margin-bottom:4px}}h2{{margin-top:30px;border-bottom:1px solid #d9e3e6;padding-bottom:8px}}h3{{margin:22px 0 8px;color:#315363}}.muted{{color:#6b7c86}}.plan{{background:#f2faf8;border-left:4px solid #087e72;padding:12px 14px;margin:16px 0}}.kpis{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:24px 0}}.kpi{{border:1px solid #d9e3e6;padding:15px;background:#f7fbfa}}.kpi small{{display:block;color:#6b7c86}}.kpi strong{{font-size:24px;display:block;margin-top:7px}}.chart{{margin:14px 0}}table{{width:100%;border-collapse:collapse}}td,th{{border-bottom:1px solid #d9e3e6;text-align:left;padding:8px}}th{{color:#6b7c86}}.callout{{background:#edf8f5;padding:16px;line-height:1.8}}@media(max-width:700px){{.kpis{{grid-template-columns:1fr 1fr}}}}</style></head><body><h1>{title}</h1><p class='muted'>{week_label} · 自动生成 · 数据范围：当前上传客户池</p><div class='plan'><b>Agent 分析方案：{mode}</b><br>主分群：{primary} · 排序口径：{ranking_rule}</div><div class='kpis'>{cards}</div>{comparison_html}<h2>本周结论</h2><div class='callout'>{narrative}</div><h2>产品使用与风险分布</h2><div class='chart'>{charts}</div><h2>多维客户分群明细</h2>{detail_tables}<p class='muted'>注：本报告由上传的整理结果生成，指标口径和字段映射应在每周上传时复核。</p></body></html>"""
 
 
+# ============================================================
+# SQL 生成与执行
+# ============================================================
+
 def clean_sql(text: str) -> str:
     block = re.search(r"```(?:sql)?\s*(.*?)```", text, flags=re.I | re.S)
     sql = (block.group(1) if block else text).strip().rstrip(";")
@@ -478,13 +711,16 @@ def clean_sql(text: str) -> str:
     return sql
 
 
-def generate_sql(question: str) -> tuple[str, str]:
-    schema = "customer_usage_summary(customer_id, industry, company_size, renewal_type, active_type, ownership, city_tier, use_times, max_cnt, type_cnt, use_period, max_success_day, renewal_days, annual_value, coverage, idle_high_value, two_week_trend, value_tier, risk_level, risk_score, package_products, used_products)"
-    key = os.getenv("OPENAI_API_KEY")
-    if key:
-        from openai import OpenAI
-        response = OpenAI(api_key=key).responses.create(model=os.getenv("OPENAI_MODEL", "gpt-5"), input=[{"role": "system", "content": f"Generate one DuckDB read-only SQL query only. Use only this schema: {schema}"}, {"role": "user", "content": question}])
-        return clean_sql(response.output_text), "openai"
+def execute_sql_on_df(df: pd.DataFrame, sql: str, limit: int = 200) -> pd.DataFrame:
+    con = duckdb.connect(database=":memory:")
+    try:
+        con.register("customer_usage_summary", df)
+        return con.execute(sql).df().head(limit)
+    finally:
+        con.close()
+
+
+def rule_generate_sql(question: str) -> str:
     dimension = "industry"
     if any(token in question for token in ["企业规模", "公司规模", "规模", "员工数"]):
         dimension = "company_size"
@@ -493,14 +729,247 @@ def generate_sql(question: str) -> tuple[str, str]:
     elif any(token in question for token in ["活跃类型", "活跃度", "活跃", "使用频率"]):
         dimension = "active_type"
     if "风险" in question or "高危" in question:
-        return f"SELECT {dimension}, risk_level, COUNT(*) AS customers, ROUND(AVG(coverage), 3) AS avg_coverage FROM customer_usage_summary WHERE risk_level IN ('高危流失','中危预警') GROUP BY 1,2 ORDER BY customers DESC", "demo_fallback"
-    return f"SELECT {dimension}, COUNT(*) AS customers, ROUND(AVG(coverage), 3) AS avg_coverage, ROUND(AVG(type_cnt), 2) AS avg_product_types FROM customer_usage_summary GROUP BY 1 ORDER BY customers DESC", "demo_fallback"
+        return f"SELECT {dimension}, risk_level, COUNT(*) AS customers, ROUND(AVG(coverage), 3) AS avg_coverage FROM customer_usage_summary WHERE risk_level IN ('高危流失','中危预警') GROUP BY 1,2 ORDER BY customers DESC"
+    return f"SELECT {dimension}, COUNT(*) AS customers, ROUND(AVG(coverage), 3) AS avg_coverage, ROUND(AVG(type_cnt), 2) AS avg_product_types FROM customer_usage_summary GROUP BY 1 ORDER BY customers DESC"
 
+
+def generate_sql(question: str) -> tuple[str, str]:
+    schema = "customer_usage_summary(customer_id, industry, company_size, renewal_type, active_type, ownership, city_tier, use_times, max_cnt, type_cnt, use_period, max_success_day, renewal_days, annual_value, coverage, idle_high_value, two_week_trend, value_tier, risk_level, risk_score, package_products, used_products)"
+    key = os.getenv("OPENAI_API_KEY")
+    if key:
+        response = OpenAI(api_key=key, base_url=os.getenv("OPENAI_BASE_URL") or None).chat.completions.create(model=os.getenv("OPENAI_MODEL", "gpt-5"), messages=[{"role": "system", "content": f"Generate one DuckDB read-only SQL query only. Use only this schema: {schema}"}, {"role": "user", "content": question}], temperature=0.2)
+        return clean_sql(response.choices[0].message.content), "openai"
+    return rule_generate_sql(question), "demo_fallback"
+
+
+# ============================================================
+# Tool Calling Agent（工具调用模式）
+# ============================================================
+
+SCHEMA_DESCRIPTION = """- customer_id: 客户代码（文本）
+- data_date: 数据快照日期（YYYY-MM-DD）
+- industry: 行业（电商/教育/金融/制造等）
+- company_size: 企业规模（大型/中型/小型等）
+- renewal_type: 续约类型（临期续约/近期续约/远期续约）
+- active_type: 活跃类型（高活跃/中活跃/低活跃/未活跃）
+- ownership: 企业性质（民营/国企等）
+- city_tier: 城市层级（一线/新一线/二线等）
+- package_products: 购买产品（JSON 数组）
+- used_products: 已使用产品（JSON 数组）
+- use_times: 使用次数
+- max_cnt: 日最大使用次数
+- type_cnt: 使用产品种类数
+- use_period: 使用时长
+- max_success_day: 最大连续使用天数
+- renewal_days: 距到期天数
+- annual_value: 年合同金额
+- coverage: 权益覆盖率（0~1）
+- idle_high_value: 闲置高价值权益数
+- two_week_trend: 近两周使用趋势（正数上升/负数下降）
+- value_tier: 价值分层（普通/重点/高价值）
+- risk_level: 风险等级（高危流失/中危预警/体验引导/续费增购/健康）
+- risk_score: 风险评分（0~100，越高越危险）
+- week_1 至 week_8: 过去 8 周的周使用量"""
+
+AGENT_TOOLS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "describe_dataset",
+            "description": "查看当前数据集概况：总行数、数据快照日期、全部字段与类型、各分群维度（行业/规模/续约/活跃）的取值。编写 SQL 前建议先调用一次。",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_readonly_sql",
+            "description": "在当前客户数据集上执行只读 SQL（仅允许 SELECT / WITH 开头），表名为 customer_usage_summary，返回最多 200 行。支持 WHERE / GROUP BY / ORDER BY / 聚合函数（COUNT / AVG / SUM / ROUND / MIN / MAX）。用于计算客户数、均值、占比、排序等具体数值。若执行失败，请根据错误信息修正后重试。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sql": {"type": "string", "description": "只读 SELECT/WITH SQL 语句，例如：SELECT industry, COUNT(*) AS customers FROM customer_usage_summary GROUP BY 1 ORDER BY customers DESC"},
+                },
+                "required": ["sql"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_customer_detail",
+            "description": "查询某个客户的完整权益使用快照（含风险等级、风险评分、权益覆盖率、距到期天数、购买/已使用产品列表等）。",
+            "parameters": {
+                "type": "object",
+                "properties": {"customer_id": {"type": "string", "description": "客户代码，例如 C001"}},
+                "required": ["customer_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_risk_summary",
+            "description": "返回当前数据集的风险总览：风险等级分布、90 天内到期客户数、高/中危客户数、续费增购机会数、平均权益覆盖率、沉默/低活跃客户数、以及风险评分最高的前 10 家客户。",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+]
+
+AGENT_SYSTEM_PROMPT = f"""你是“企业权益周报分析 Agent”，面向 B2B 客户成功团队。你可以通过工具查询当前上传的客户权益数据集，回答关于续约风险、权益使用、增购机会等业务问题。
+
+数据集表名为 customer_usage_summary，字段说明：
+{SCHEMA_DESCRIPTION}
+
+工具使用规则：
+1. 动手前先调用 describe_dataset 了解数据概况（字段、快照日期、维度取值）。
+2. 需要具体数字或聚合结果时，调用 run_readonly_sql 执行只读 SQL；SQL 只允许 SELECT/WITH 开头，禁止 INSERT/UPDATE/DELETE/DROP/ALTER/CREATE。
+3. 涉及具体客户时，调用 get_customer_detail。
+4. 涉及整体风险概况时，可调用 get_risk_summary 快速获取。
+5. 工具返回 error 时，根据错误信息修正参数后重试（例如 SQL 语法错误、字段名写错、客户不存在）。
+6. 完成查询后，用自然语言中文给出最终回答：直接说结论、关键数字和可执行建议，不要输出 JSON，不要复述 SQL，不要声称自己执行了未调用的查询。"""
+
+
+def _dataset_overview(df: pd.DataFrame) -> dict[str, Any]:
+    dates = snapshot_dates(df)
+    dimensions: dict[str, list[str]] = {}
+    for field in SEGMENT_FIELDS:
+        values = [str(value) for value in df[field].dropna().unique().tolist() if str(value).strip()]
+        if values:
+            dimensions[field] = sorted(set(values))[:20]
+    return {
+        "table": "customer_usage_summary",
+        "rows": int(len(df)),
+        "snapshot_date": dates[0] if dates else None,
+        "columns": [{"name": column, "dtype": str(df[column].dtype)} for column in df.columns],
+        "dimension_values": dimensions,
+    }
+
+
+def _risk_summary(df: pd.DataFrame) -> dict[str, Any]:
+    risk = df.risk_level.value_counts().reindex(["高危流失", "中危预警", "体验引导", "续费/增购", "健康"], fill_value=0).to_dict()
+    top = df.sort_values(["risk_score", "annual_value"], ascending=False).head(10)
+    top = top[["customer_id", "industry", "company_size", "risk_level", "risk_score", "renewal_days", "annual_value", "coverage"]].fillna("").to_dict(orient="records")
+    return {
+        "risk_distribution": risk,
+        "expiring_within_90_days": int((df.renewal_days <= 90).sum()),
+        "high_or_medium_risk": int(df.risk_level.isin(["高危流失", "中危预警"]).sum()),
+        "upsell_opportunities": int((df.risk_level == "续费/增购").sum()),
+        "average_coverage": round(float(df.coverage.mean()), 3) if len(df) else 0,
+        "silent_or_low_active": int(df.active_type.isin(["沉默客户", "未活跃", "低活跃"]).sum()),
+        "top_risk_customers": top,
+    }
+
+
+def _run_readonly_sql(df: pd.DataFrame, sql: str) -> dict[str, Any]:
+    cleaned = clean_sql(sql)
+    data = execute_sql_on_df(df, cleaned)
+    return {
+        "columns": data.columns.tolist(),
+        "rows": data.fillna("").to_dict(orient="records"),
+        "row_count": int(len(data)),
+        "truncated": len(data) == 200,
+    }
+
+
+def _customer_detail(df: pd.DataFrame, customer_id: str) -> dict[str, Any]:
+    cid = customer_id.strip()
+    if not cid:
+        return {"error": "缺少 customer_id 参数"}
+    matched = df[df.customer_id.astype(str) == cid]
+    if matched.empty:
+        return {"error": f"未找到客户 {cid}，可先用 get_risk_summary 或 SQL 查看客户列表"}
+    row = matched.sort_values("data_date").iloc[-1]
+    record = row.dropna().to_dict()
+    return {key: (value.strftime("%Y-%m-%d") if isinstance(value, pd.Timestamp) else value) for key, value in record.items()}
+
+
+def execute_tool(name: str, args: dict[str, Any], df: pd.DataFrame) -> dict[str, Any]:
+    try:
+        if name == "describe_dataset":
+            return _dataset_overview(df)
+        if name == "run_readonly_sql":
+            return _run_readonly_sql(df, str(args.get("sql", "")))
+        if name == "get_customer_detail":
+            return _customer_detail(df, str(args.get("customer_id", "")))
+        if name == "get_risk_summary":
+            return _risk_summary(df)
+        return {"error": f"未知工具：{name}"}
+    except ValueError as exc:
+        return {"error": str(exc)}
+    except Exception as exc:
+        return {"error": f"工具执行失败：{exc}"}
+
+
+def _trim_trace_result(result: dict[str, Any], max_rows: int = 8) -> dict[str, Any]:
+    if isinstance(result, dict) and isinstance(result.get("rows"), list) and len(result["rows"]) > max_rows:
+        trimmed = dict(result)
+        trimmed["rows"] = result["rows"][:max_rows]
+        trimmed["note"] = f"（仅展示前 {max_rows} 行，共 {len(result['rows'])} 行）"
+        return trimmed
+    return result
+
+
+def run_tool_calling_agent(df: pd.DataFrame, question: str) -> dict[str, Any]:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL") or None)
+    messages: list[dict[str, Any]] = [
+        {"role": "system", "content": AGENT_SYSTEM_PROMPT},
+        {"role": "user", "content": question},
+    ]
+    trace: list[dict[str, Any]] = []
+    last_query: dict[str, Any] = {"sql": "", "columns": [], "rows": []}
+
+    for step in range(1, MAX_AGENT_ITERATIONS + 1):
+        response = client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5"),
+            messages=messages,
+            tools=AGENT_TOOLS,
+            tool_choice="auto",
+        )
+        message = response.choices[0].message
+        if not message.tool_calls:
+            answer = (message.content or "").strip()
+            return {
+                "answer": answer or "查询完成，但没有生成可读结论。",
+                "trace": trace,
+                "last_query": last_query,
+                "iterations": step,
+                "halted": False,
+            }
+        messages.append(message.model_dump(exclude_none=True))
+        for tool_call in message.tool_calls:
+            try:
+                args = json.loads(tool_call.function.arguments or "{}")
+            except Exception:
+                args = {}
+            result = execute_tool(tool_call.function.name, args, df)
+            if tool_call.function.name == "run_readonly_sql" and "error" not in result:
+                last_query = {"sql": str(args.get("sql", "")), "columns": result.get("columns", []), "rows": result.get("rows", [])}
+            trace.append({"step": step, "tool": tool_call.function.name, "arguments": args, "result": _trim_trace_result(result)})
+            content = json.dumps(result, ensure_ascii=False, default=str)
+            if len(content) > 80000:
+                content = content[:80000] + " ……（结果过长，已截断）"
+            messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": content})
+
+    return {
+        "answer": f"已达到最大工具调用轮次（{MAX_AGENT_ITERATIONS} 轮），未能完成查询。请缩小问题范围后重试。",
+        "trace": trace,
+        "last_query": last_query,
+        "iterations": MAX_AGENT_ITERATIONS,
+        "halted": True,
+    }
+
+
+# ============================================================
+# FastAPI 应用
+# ============================================================
+
+init_db()
 
 app = FastAPI(
     title="B2B Entitlement Agent API",
-    version="1.0.0",
-    description="Excel-driven entitlement analytics, weekly-report generation, and read-only SQL Agent.",
+    version="2.0.0",
+    description="Excel-driven entitlement analytics, weekly-report generation, tool-calling SQL Agent, and SQLite persistence.",
 )
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -514,7 +983,16 @@ async def allow_frontend_options(request, call_next):
 
 @app.get("/api/v1/health", tags=["platform"])
 def health():
-    return {"status": "ok", "service": "b2b-entitlement-agent", "time": datetime.now(timezone.utc).isoformat(), "storage": "ephemeral-memory"}
+    return {
+        "status": "ok",
+        "service": "b2b-entitlement-agent",
+        "time": datetime.now(timezone.utc).isoformat(),
+        "storage": "sqlite" if IS_SQLITE else "database",
+        "database": DATABASE_URL if not IS_SQLITE else str(ROOT / "entitlement.db"),
+        "sessions": count_uploads(),
+        "agent_mode": "tool-calling" if os.getenv("OPENAI_API_KEY") else "rule-fallback",
+        "agent_tools": [tool["function"]["name"] for tool in AGENT_TOOLS],
+    }
 
 
 @app.get("/api/v1/sample-data", tags=["platform"])
@@ -524,6 +1002,26 @@ def sample_data():
         raise HTTPException(404, "样例数据文件不存在")
     content = "\ufeff" + path.read_text(encoding="utf-8")
     return Response(content=content, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=sample_data_multiweek.csv"})
+
+
+@app.get("/api/v1/sessions", tags=["uploads"])
+def list_sessions():
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT session_id, filename, rows, created_at, mapping, snapshots FROM uploads ORDER BY created_at DESC LIMIT 50")).mappings().all()
+    return {
+        "storage": "sqlite" if IS_SQLITE else "database",
+        "sessions": [
+            {
+                "session_id": row["session_id"],
+                "filename": row["filename"],
+                "rows": row["rows"],
+                "created_at": row["created_at"],
+                "snapshot_count": len(json.loads(row["snapshots"])),
+                "mapped_fields": sum(1 for value in json.loads(row["mapping"]).values() if value),
+            }
+            for row in rows
+        ],
+    }
 
 
 @app.post("/api/upload", tags=["legacy"])
@@ -540,31 +1038,39 @@ async def upload(file: UploadFile = File(...)):
         raise HTTPException(400, "上传文件没有数据行")
     session_id = uuid.uuid4().hex
     mapping = infer_mapping(df.columns.tolist())
-    SESSIONS[session_id] = {"raw": df, "mapping": mapping, "created_at": pd.Timestamp.utcnow()}
     normalized = normalise(df, mapping)
     dates = snapshot_dates(normalized)
-    return {"upload_id": session_id, "session_id": session_id, "columns": df.columns.tolist(), "mapping": mapping, "preview": df.head(8).fillna("").to_dict(orient="records"), "rows": len(df), "snapshots": dates, "snapshot_count": len(dates), "dimensions": available_dimensions(df, mapping), "auto_ready": True, "expires": "服务重启后失效；生产环境请替换为对象存储和数据库"}
+    save_upload(session_id, file.filename or "upload.csv", len(df), mapping, dates, df, normalized)
+    return {
+        "upload_id": session_id,
+        "session_id": session_id,
+        "columns": df.columns.tolist(),
+        "mapping": mapping,
+        "preview": df.head(8).fillna("").to_dict(orient="records"),
+        "rows": len(df),
+        "snapshots": dates,
+        "snapshot_count": len(dates),
+        "dimensions": available_dimensions(df, mapping),
+        "auto_ready": True,
+        "storage": "sqlite" if IS_SQLITE else "database",
+        "expires": "数据已持久化到数据库，服务重启后仍可继续使用该会话",
+    }
 
 
 @app.post("/api/v1/agent/analysis-plan", tags=["agent"])
 def analysis_plan(request: AnalysisPlanRequest):
-    session = SESSIONS.get(request.session_id)
-    if not session:
-        raise HTTPException(404, "上传会话已失效，请重新上传文件")
-    return suggest_analysis_plan(session["raw"], request.mapping, request.goal)
+    meta = resolve_session(request.session_id)
+    raw = get_raw_df(request.session_id)
+    return suggest_analysis_plan(raw if raw is not None else pd.DataFrame(), request.mapping, request.goal)
 
 
 @app.post("/api/analyze", tags=["legacy"])
 @app.post("/api/v1/analysis/customer-pool", tags=["analysis"])
 def analyze(request: AnalyzeRequest):
-    session = SESSIONS.get(request.session_id)
-    if not session:
-        raise HTTPException(404, "上传会话已失效，请重新上传文件")
-    history = normalise(session["raw"], request.mapping)
+    history = resolve_normalized(request.session_id, request.mapping)
     df, selected_date = select_snapshot(history, request.snapshot_date)
     df = apply_filters(df, request.industry, request.renewal_max, request.value_tier, request.filters)
-    session["diagnostics"] = df
-    session["history"] = history
+    save_analysis_snapshot(request.session_id, selected_date, df)
     risk = df.risk_level.value_counts().reindex(["高危流失", "中危预警", "体验引导", "续费/增购", "健康"], fill_value=0).to_dict()
     industry = df.groupby("industry", as_index=False).agg(customers=("customer_id", "count"), avg_coverage=("coverage", "mean"), avg_idle=("idle_high_value", "mean"), high_risk=("risk_level", lambda x: int(x.isin(["高危流失", "中危预警"]).sum()))).round(3)
     export = df.sort_values(["risk_score", "annual_value"], ascending=False).head(200)
@@ -577,26 +1083,65 @@ def analyze(request: AnalyzeRequest):
 @app.post("/api/query", tags=["legacy"])
 @app.post("/api/v1/agent/sql-queries", tags=["agent"])
 def query(request: QueryRequest):
-    session = SESSIONS.get(request.session_id)
-    if not session or "diagnostics" not in session:
+    snapshot = load_analysis_snapshot(request.session_id)
+    if snapshot is None:
         raise HTTPException(400, "请先完成文件分析，再发起 Agent 查询")
-    sql, source = generate_sql(request.question)
-    con = duckdb.connect(database=":memory:")
-    con.register("customer_usage_summary", session["diagnostics"])
+    df, snapshot_date = snapshot
+
+    # 1) Tool Calling Agent（有 Key 时优先）
+    if os.getenv("OPENAI_API_KEY"):
+        try:
+            agent_result = run_tool_calling_agent(df, request.question)
+            last_query = agent_result.get("last_query") or {}
+            return {
+                "source": "openai_tool_calling",
+                "answer": agent_result.get("answer", ""),
+                "sql": last_query.get("sql", ""),
+                "columns": last_query.get("columns", []),
+                "rows": last_query.get("rows", []),
+                "summary": f"Agent 共调用 {len(agent_result.get('trace', []))} 次工具，已完成回答。",
+                "tool_calls": agent_result.get("trace", []),
+                "iterations": agent_result.get("iterations", 0),
+                "halted": agent_result.get("halted", False),
+                "snapshot_date": snapshot_date,
+            }
+        except Exception:
+            pass  # 降级到传统 NL2SQL / 规则查询
+
+    # 2) 传统 NL2SQL（有 Key 但工具调用不可用时）
+    if os.getenv("OPENAI_API_KEY"):
+        try:
+            sql, _ = generate_sql(request.question)
+            source = "openai_sql"
+        except Exception:
+            sql = rule_generate_sql(request.question)
+            source = "demo_fallback"
+    else:
+        sql = rule_generate_sql(request.question)
+        source = "demo_fallback"
+
     try:
-        data = con.execute(sql).df()
-    finally:
-        con.close()
-    return {"source": source, "sql": sql, "columns": data.columns.tolist(), "rows": data.fillna("").to_dict(orient="records"), "summary": f"已执行只读 SQL，返回 {len(data)} 行结果。"}
+        data = execute_sql_on_df(df, sql)
+    except Exception as exc:
+        raise HTTPException(400, f"SQL 执行失败：{exc}") from exc
+    return {
+        "source": source,
+        "answer": f"已执行只读 SQL，返回 {len(data)} 行结果，详见下方表格。",
+        "sql": sql,
+        "columns": data.columns.tolist(),
+        "rows": data.fillna("").to_dict(orient="records"),
+        "summary": f"已执行只读 SQL，返回 {len(data)} 行结果。",
+        "tool_calls": [],
+        "iterations": 0,
+        "halted": False,
+        "snapshot_date": snapshot_date,
+    }
 
 
 @app.post("/api/weekly-report", tags=["legacy"])
 @app.post("/api/v1/reports/weekly", tags=["reports"])
 def weekly_report(request: WeeklyReportRequest):
-    session = SESSIONS.get(request.session_id)
-    if not session:
-        raise HTTPException(404, "上传会话已失效，请重新上传文件")
-    history = normalise(session["raw"], request.mapping)
+    history = resolve_normalized(request.session_id, request.mapping)
     df, selected_date = select_snapshot(history, request.snapshot_date)
     df = apply_filters(df, request.industry, request.renewal_max, request.value_tier, request.filters)
     focus_dimensions = [field for field in request.focus_dimensions if field in SEGMENT_FIELDS] or ["industry"]
@@ -607,12 +1152,11 @@ def weekly_report(request: WeeklyReportRequest):
 
 @app.post("/api/v1/reports/auto", tags=["reports"])
 def auto_report(request: AutoReportRequest):
-    session = SESSIONS.get(request.session_id)
-    if not session:
-        raise HTTPException(404, "上传会话已失效，请重新上传文件")
-    df, selected_date = select_snapshot(normalise(session["raw"], session["mapping"]))
+    meta = resolve_session(request.session_id)
+    history = resolve_normalized(request.session_id, meta["mapping"])
+    df, selected_date = select_snapshot(history)
     html = weekly_report_html(df, request.report_title, request.week_label, SEGMENT_FIELDS)
-    return {"title": request.report_title, "week_label": request.week_label, "html": html, "rows": len(df), "snapshot_date": selected_date, "mapping": session["mapping"], "detected_fields": [key for key, value in session["mapping"].items() if value]}
+    return {"title": request.report_title, "week_label": request.week_label, "html": html, "rows": len(df), "snapshot_date": selected_date, "mapping": meta["mapping"], "detected_fields": [key for key, value in meta["mapping"].items() if value]}
 
 
 @app.options("/", include_in_schema=False)
@@ -620,4 +1164,6 @@ def frontend_options():
     return Response(status_code=204)
 
 
-app.mount("/", StaticFiles(directory=FRONTEND, html=True), name="frontend")
+# 优先托管 React 构建产物（frontend-react/dist），未构建时回退到原生版（frontend/）
+STATIC_DIR = REACT_DIST if REACT_DIST.is_dir() else FRONTEND
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")

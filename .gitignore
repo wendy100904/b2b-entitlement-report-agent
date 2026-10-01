@@ -14,8 +14,19 @@ reports/
 .tools/
 *.log
 
+# Local SQLite database
+entitlement.db
+entitlement.db-wal
+entitlement.db-shm
+data/
+
 # Editor and OS files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Node / React frontend build artifacts
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/*.tsbuildinfo
