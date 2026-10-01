@@ -1163,6 +1163,6 @@ def frontend_options():
     return Response(status_code=204)
 
 
-# 托管 React 构建产物（frontend-react/dist，需先 npm run build）
-STATIC_DIR = REACT_DIST
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
+# 托管 React 构建产物（frontend-react/dist，需先 npm run build）；未构建时不挂载，API 仍可用
+if REACT_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=REACT_DIST, html=True), name="frontend")
