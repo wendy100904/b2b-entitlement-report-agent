@@ -826,7 +826,8 @@ AGENT_SYSTEM_PROMPT = f"""你是“B2B 客户数据分析 Agent”，面向客�
 3. 涉及具体客户时，调用 get_customer_detail。
 4. 涉及整体风险概况时，可调用 get_risk_summary 快速获取。
 5. 工具返回 error 时，根据错误信息修正参数后重试（例如 SQL 语法错误、字段名写错、客户不存在）。
-6. 完成查询后，用自然语言中文给出最终回答：直接说结论、关键数字和可执行建议，不要输出 JSON，不要复述 SQL，不要声称自己执行了未调用的查询。"""
+6. 涉及“上一周 / 本周 / 最近 / 最新 / 上一期”等相对时间表述时，严禁臆造具体日期：先用 SQL 查询实际存在的快照日期（例如 SELECT DISTINCT data_date FROM customer_usage_summary ORDER BY 1 DESC LIMIT 3），再基于真实存在的日期进行分析；需要对比时使用最近的两个快照日期。
+7. 完成查询后，用自然语言中文给出最终回答：直接说结论、关键数字和可执行建议，不要输出 JSON，不要复述 SQL，不要声称自己执行了未调用的查询。"""
 
 
 def _dataset_overview(df: pd.DataFrame) -> dict[str, Any]:
